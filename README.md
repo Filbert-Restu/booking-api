@@ -1,11 +1,70 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🚀 Booking API - Workflow Management System
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Sistem manajemen dokumen dengan workflow approval otomatis untuk organisasi kampus (HIMA, UKM, Prodi, Fakultas).
+
+## ⚡ Quick Start
+
+```bash
+# 1. Jalankan migrasi database
+php artisan migrate:fresh
+
+# 2. Seed data awal (roles, units, users, workflows)
+php artisan db:seed --class=WorkflowSeeder
+
+# 3. Jalankan server
+php artisan serve
+```
+
+## 📧 Demo Accounts
+
+| Email                       | Password | Role        | Unit                |
+| --------------------------- | -------- | ----------- | ------------------- |
+| dekan@ft.ac.id              | password | Dekan       | Fakultas            |
+| kaprodi.if@ft.ac.id         | password | Kaprodi     | Prodi Informatika   |
+| ketua.hima.if@student.ac.id | password | Ketua HIMA  | HIMA Informatika    |
+| ketua.hima.te@student.ac.id | password | Ketua HIMA  | HIMA Teknik Elektro |
+| ketua.hima.ts@student.ac.id | password | Ketua HIMA  | HIMA Teknik Sipil   |
+| ketua.bem@student.ac.id     | password | Ketua BEM   | BEM Fakultas        |
+| senat@ft.ac.id              | password | Ketua Senat | Senat Fakultas      |
+| ketua.ukm@student.ac.id     | password | Ketua UKM   | UKM Olahraga        |
+
+## 📚 Documentation
+
+- **[Implementation Guide](WORKFLOW_IMPLEMENTATION_GUIDE.md)** - Panduan lengkap API & penggunaan
+- **[Technical Diagrams](WORKFLOW_DIAGRAMS.md)** - Diagram database & flow
+- **[Organizational Structure](ORGANIZATIONAL_STRUCTURE.md)** - Struktur organisasi lengkap (HIMA, BEM, Senat, UKM)
+- **[Organizational Structure](ORGANIZATIONAL_STRUCTURE.md)** - Struktur organisasi lengkap (HIMA, BEM, Senat, UKM)
+
+## 🔑 Key Features
+
+✅ Dynamic workflow routing (SELF, PARENT, FACULTY_LEADER, SPECIFIC_CATEGORY)  
+✅ Multi-level approval system  
+✅ Complete audit trail & document logs  
+✅ Hierarchical organization structure  
+✅ Role-based access control
+
+## 📡 Main API Endpoints
+
+```
+GET    /api/workflows                      # List workflows
+GET    /api/documents                      # My documents & pending approvals
+POST   /api/documents                      # Create document
+POST   /api/documents/{id}/submit          # Submit document
+POST   /api/documents/{id}/approve         # Approve & forward
+POST   /api/documents/{id}/reject          # Reject document
+POST   /api/documents/{id}/revise          # Return for revision
+```
+
+## 🏗️ Tech Stack
+
+- Laravel 11
+- PHP 8.2+
+- MySQL/PostgreSQL/SQLite
+- Laravel Sanctum (Authentication)
+
+---
+
+<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
 ## About Laravel
 
