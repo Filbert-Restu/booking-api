@@ -65,6 +65,10 @@
                 "value": "application/json"
               },
               {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
                 "key": "X-XSRF-TOKEN",
                 "value": "{{xsrf_token}}",
                 "type": "text"
@@ -93,6 +97,10 @@
             "header": [
               {
                 "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
                 "value": "application/json"
               },
               {
@@ -205,6 +213,10 @@
                 "value": "application/json"
               },
               {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
                 "key": "X-XSRF-TOKEN",
                 "value": "{{xsrf_token}}",
                 "type": "text"
@@ -233,6 +245,10 @@
             "header": [
               {
                 "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
                 "value": "application/json"
               },
               {
@@ -328,6 +344,10 @@
                 "value": "application/json"
               },
               {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
                 "key": "X-XSRF-TOKEN",
                 "value": "{{xsrf_token}}",
                 "type": "text"
@@ -356,6 +376,10 @@
             "header": [
               {
                 "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
                 "value": "application/json"
               },
               {
@@ -390,6 +414,10 @@
                 "value": "application/json"
               },
               {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
                 "key": "X-XSRF-TOKEN",
                 "value": "{{xsrf_token}}",
                 "type": "text"
@@ -418,6 +446,10 @@
             "header": [
               {
                 "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
                 "value": "application/json"
               },
               {
@@ -452,6 +484,10 @@
                 "value": "application/json"
               },
               {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
                 "key": "X-XSRF-TOKEN",
                 "value": "{{xsrf_token}}",
                 "type": "text"
@@ -480,6 +516,10 @@
             "header": [
               {
                 "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
                 "value": "application/json"
               },
               {

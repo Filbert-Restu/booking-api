@@ -6,6 +6,11 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\WorkflowController;
 use App\Http\Controllers\DocumentController;
 
+// Get authenticated user
+Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
+    return $request->user();
+});
+
 // Routes yang membutuhkan autentikasi
 Route::middleware('auth:sanctum')->group(function () {
 
