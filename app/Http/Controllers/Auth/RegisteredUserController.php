@@ -6,8 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 
@@ -18,7 +17,7 @@ class RegisteredUserController extends Controller
      *
      * @throws \Illuminate\Validation\ValidationException
      */
-    public function store(Request $request): Response
+    public function store(Request $request): JsonResponse
     {
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -39,12 +38,12 @@ class RegisteredUserController extends Controller
         event(new Registered($user));
 
         // Buat token untuk API
-        $token = $user->createToken('api-token')->plainTextToken;
+        $token = $user->createToken('auth-token')->plainTextToken;
 
-                event(new Registered($user));
-
-        Auth::login($user);
-
-        return response()->noContent();
+        return response()->json([
+            'message' => 'Registration successful',
+            'token' => $token,
+            'user' => $user,
+        ], 201);
     }
 }

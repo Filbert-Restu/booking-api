@@ -18,10 +18,15 @@ class WorkflowController extends Controller
         // Ambil kategori unit dari user yang login
         $userUnitCategory = $user->unit->category;
 
-        // Ambil workflow yang sesuai dengan kategori unit user
-        $workflows = Workflow::with('steps')
-            ->forCategory($userUnitCategory)
-            ->get();
+        // Admin atau unit fakultas bisa melihat semua workflow
+        if ($userUnitCategory === 'FAKULTAS') {
+            $workflows = Workflow::with('steps')->get();
+        } else {
+            // Ambil workflow yang sesuai dengan kategori unit user
+            $workflows = Workflow::with('steps')
+                ->forCategory($userUnitCategory)
+                ->get();
+        }
 
         return response()->json([
             'success' => true,
@@ -32,9 +37,21 @@ class WorkflowController extends Controller
     /**
      * Ambil detail workflow tertentu beserta langkah-langkahnya
      */
-    public function show($id)
+    public function show(Request $request, $id)
     {
+        $user = $request->user();
         $workflow = Workflow::with('steps')->findOrFail($id);
+
+        // Admin atau unit fakultas bisa melihat semua workflow
+        $userUnitCategory = $user->unit->category;
+        if ($userUnitCategory !== 'FAKULTAS') {
+            // Validasi bahwa workflow sesuai dengan kategori unit user
+            abort_if(
+                $workflow->applies_to_category !== $userUnitCategory,
+                403,
+                'Anda tidak memiliki akses ke workflow ini'
+            );
+        }
 
         return response()->json([
             'success' => true,
@@ -49,7 +66,7 @@ class WorkflowController extends Controller
     {
         // Pastikan hanya admin yang bisa membuat workflow
         abort_if(
-            $request->user()->role->slug !== 'admin',
+            $request->user()->unit->category !== 'FAKULTAS',
             403,
             'Hanya admin yang dapat membuat workflow'
         );
@@ -91,7 +108,7 @@ class WorkflowController extends Controller
     {
         // Pastikan hanya admin yang bisa mengubah workflow
         abort_if(
-            $request->user()->role->slug !== 'admin',
+            $request->user()->unit->category !== 'FAKULTAS',
             403,
             'Hanya admin yang dapat mengubah workflow'
         );
@@ -120,7 +137,7 @@ class WorkflowController extends Controller
     {
         // Pastikan hanya admin yang bisa menghapus workflow
         abort_if(
-            $request->user()->role->slug !== 'admin',
+            $request->user()->unit->category !== 'FAKULTAS',
             403,
             'Hanya admin yang dapat menghapus workflow'
         );
@@ -131,6 +148,91 @@ class WorkflowController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Workflow berhasil dihapus'
+        ]);
+    }
+
+    /**
+     * Tambahkan step baru ke workflow
+     */
+    public function addStep(Request $request, $id)
+    {
+        // Pastikan hanya admin yang bisa menambah step
+        abort_if(
+            $request->user()->unit->category !== 'FAKULTAS',
+            403,
+            'Hanya admin yang dapat menambahkan step'
+        );
+
+        $workflow = Workflow::findOrFail($id);
+
+        $validated = $request->validate([
+            'step_order' => 'required|integer',
+            'step_name' => 'required|string',
+            'target_role_slug' => 'required|string',
+            'scope_type' => 'required|in:SELF,PARENT,FACULTY_LEADER,SPECIFIC_CATEGORY',
+            'target_category_lookup' => 'nullable|string',
+        ]);
+
+        $step = $workflow->steps()->create($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Step berhasil ditambahkan',
+            'data' => $step
+        ], 201);
+    }
+
+    /**
+     * Update step tertentu dalam workflow
+     */
+    public function updateStep(Request $request, $workflowId, $stepId)
+    {
+        // Pastikan hanya admin yang bisa mengupdate step
+        abort_if(
+            $request->user()->unit->category !== 'FAKULTAS',
+            403,
+            'Hanya admin yang dapat mengupdate step'
+        );
+
+        $workflow = Workflow::findOrFail($workflowId);
+        $step = $workflow->steps()->findOrFail($stepId);
+
+        $validated = $request->validate([
+            'step_order' => 'sometimes|integer',
+            'step_name' => 'sometimes|string',
+            'target_role_slug' => 'sometimes|string',
+            'scope_type' => 'sometimes|in:SELF,PARENT,FACULTY_LEADER,SPECIFIC_CATEGORY',
+            'target_category_lookup' => 'nullable|string',
+        ]);
+
+        $step->update($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Step berhasil diupdate',
+            'data' => $step
+        ]);
+    }
+
+    /**
+     * Hapus step tertentu dari workflow
+     */
+    public function deleteStep(Request $request, $workflowId, $stepId)
+    {
+        // Pastikan hanya admin yang bisa menghapus step
+        abort_if(
+            $request->user()->unit->category !== 'FAKULTAS',
+            403,
+            'Hanya admin yang dapat menghapus step'
+        );
+
+        $workflow = Workflow::findOrFail($workflowId);
+        $step = $workflow->steps()->findOrFail($stepId);
+        $step->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Step berhasil dihapus'
         ]);
     }
 }

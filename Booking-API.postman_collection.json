@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Booking API",
-    "description": "API Collection untuk Sistem Peminjaman Tempat dengan Workflow (Session-based Auth)",
+    "description": "API Collection untuk Sistem Peminjaman Tempat dengan Workflow (Bearer Token Auth)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -11,7 +11,7 @@
       "type": "string"
     },
     {
-      "key": "xsrf_token",
+      "key": "auth_token",
       "value": "",
       "type": "string"
     }
@@ -20,41 +20,6 @@
     {
       "name": "Auth",
       "item": [
-        {
-          "name": "Get CSRF Cookie",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "const xsrfCookie = pm.cookies.get('XSRF-TOKEN');",
-                  "if (xsrfCookie) {",
-                  "    pm.collectionVariables.set('xsrf_token', decodeURIComponent(xsrfCookie));",
-                  "    console.log('XSRF Token saved:', decodeURIComponent(xsrfCookie));",
-                  "}"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "http://localhost:8000/sanctum/csrf-cookie",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "8000",
-              "path": ["sanctum", "csrf-cookie"]
-            },
-            "description": "Panggil endpoint ini PERTAMA KALI sebelum login/register untuk mendapatkan CSRF token"
-          }
-        },
         {
           "name": "Register",
           "request": {
@@ -67,11 +32,6 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrf_token}}",
-                "type": "text"
               }
             ],
             "body": {
@@ -92,6 +52,21 @@
         },
         {
           "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response.token) {",
+                  "    pm.collectionVariables.set('auth_token', response.token);",
+                  "    console.log('Bearer token saved:', response.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -102,11 +77,6 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrf_token}}",
-                "type": "text"
               }
             ],
             "body": {
@@ -133,6 +103,11 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
               }
             ],
             "url": {
@@ -152,8 +127,8 @@
                 "value": "application/json"
               },
               {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrf_token}}",
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
                 "type": "text"
               }
             ],
@@ -177,6 +152,11 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
               }
             ],
             "url": {
@@ -194,6 +174,11 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
               }
             ],
             "url": {
@@ -217,8 +202,8 @@
                 "value": "application/json"
               },
               {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrf_token}}",
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
                 "type": "text"
               }
             ],
@@ -252,8 +237,8 @@
                 "value": "application/json"
               },
               {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrf_token}}",
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
                 "type": "text"
               }
             ],
@@ -283,8 +268,8 @@
                 "value": "application/json"
               },
               {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrf_token}}",
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
                 "type": "text"
               }
             ],
@@ -308,6 +293,11 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
               }
             ],
             "url": {
@@ -325,6 +315,11 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
               }
             ],
             "url": {
@@ -348,8 +343,8 @@
                 "value": "application/json"
               },
               {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrf_token}}",
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
                 "type": "text"
               }
             ],
@@ -383,8 +378,8 @@
                 "value": "application/json"
               },
               {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrf_token}}",
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
                 "type": "text"
               }
             ],
@@ -418,8 +413,8 @@
                 "value": "application/json"
               },
               {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrf_token}}",
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
                 "type": "text"
               }
             ],
@@ -453,8 +448,8 @@
                 "value": "application/json"
               },
               {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrf_token}}",
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
                 "type": "text"
               }
             ],
@@ -488,8 +483,8 @@
                 "value": "application/json"
               },
               {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrf_token}}",
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
                 "type": "text"
               }
             ],
@@ -523,8 +518,8 @@
                 "value": "application/json"
               },
               {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrf_token}}",
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
                 "type": "text"
               }
             ],

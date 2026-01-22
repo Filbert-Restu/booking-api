@@ -21,11 +21,29 @@ class DocumentController extends Controller
      * Daftar dokumen untuk user yang login
      * - Dokumen yang dibuat user
      * - Dokumen yang sedang dipegang user (perlu action)
+     * - Dokumen yang sudah diproses user (history)
+     * - Admin bisa melihat semua dokumen
      */
     public function index(Request $request)
     {
         $user = $request->user();
+        $isAdmin = $user->role->slug === 'admin';
 
+        // Jika Admin, return semua dokumen
+        if ($isAdmin) {
+            $allDocuments = Document::with(['workflow', 'currentHolder', 'unit', 'logs'])
+                ->latest()
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'all_documents' => $allDocuments,
+                ]
+            ]);
+        }
+
+        // Untuk user biasa
         // Dokumen yang dibuat user
         $myDocuments = Document::with(['workflow', 'currentHolder', 'unit'])
             ->where('creator_id', $user->id)
@@ -39,20 +57,40 @@ class DocumentController extends Controller
             ->latest()
             ->get();
 
+        // Dokumen yang sudah diproses oleh user ini (approved/rejected)
+        // Ambil document_id dari logs dimana user ini melakukan action
+        $processedDocumentIds = DocumentLog::where('user_id', $user->id)
+            ->whereIn('action', ['APPROVED', 'REJECTED'])
+            ->pluck('document_id')
+            ->unique();
+
+        $processedDocuments = Document::with(['workflow', 'currentHolder', 'unit'])
+            ->whereIn('id', $processedDocumentIds)
+            ->where('creator_id', '!=', $user->id) // Hindari duplikasi dengan my_documents
+            ->latest()
+            ->get();
+
         return response()->json([
             'success' => true,
             'data' => [
                 'my_documents' => $myDocuments,
                 'pending_documents' => $pendingDocuments,
+                'processed_documents' => $processedDocuments,
             ]
         ]);
     }
 
     /**
      * Detail dokumen beserta log history
+     * Hanya bisa diakses oleh:
+     * - Creator dokumen
+     * - Current holder
+     * - User yang pernah memproses dokumen (ada di logs)
+     * - Admin
      */
-    public function show($id)
+    public function show(Request $request, $id)
     {
+        $user = $request->user();
         $document = Document::with([
             'workflow.steps',
             'currentHolder.role',
@@ -60,6 +98,29 @@ class DocumentController extends Controller
             'unit',
             'logs.user.role'
         ])->findOrFail($id);
+
+        // Cek apakah user adalah admin
+        $isAdmin = $user->role->slug === 'admin';
+
+        // Cek apakah user adalah creator
+        $isCreator = $document->creator_id === $user->id;
+
+        // Cek apakah user adalah current holder
+        $isCurrentHolder = $document->current_holder_id === $user->id;
+
+        // Cek apakah user pernah memproses dokumen ini (ada di logs)
+        $hasProcessed = DocumentLog::where('document_id', $document->id)
+            ->where('user_id', $user->id)
+            ->whereIn('action', ['APPROVED', 'REJECTED', 'SUBMITTED', 'REVISED'])
+            ->exists();
+
+        // Validasi akses
+        if (!$isAdmin && !$isCreator && !$isCurrentHolder && !$hasProcessed) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak memiliki akses untuk melihat dokumen ini'
+            ], 403);
+        }
 
         return response()->json([
             'success' => true,
