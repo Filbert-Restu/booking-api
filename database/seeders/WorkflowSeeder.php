@@ -17,19 +17,19 @@ class WorkflowSeeder extends Seeder
         // 1. ROLES
         $roles = [
             ['name' => 'Admin', 'slug' => 'admin', 'description' => 'Administrator Sistem'],
-            ['name' => 'Ketua HIMA', 'slug' => 'ketua-hima', 'description' => 'Ketua Himpunan Mahasiswa'],
-            ['name' => 'Sekretaris HIMA', 'slug' => 'sekretaris-hima', 'description' => 'Sekretaris Himpunan Mahasiswa'],
-            ['name' => 'Bendahara HIMA', 'slug' => 'bendahara-hima', 'description' => 'Bendahara Himpunan Mahasiswa'],
-            ['name' => 'Ketua BEM', 'slug' => 'ketua-bem', 'description' => 'Ketua Badan Eksekutif Mahasiswa'],
-            ['name' => 'Sekretaris BEM', 'slug' => 'sekretaris-bem', 'description' => 'Sekretaris Badan Eksekutif Mahasiswa'],
-            ['name' => 'Bendahara BEM', 'slug' => 'bendahara-bem', 'description' => 'Bendahara Badan Eksekutif Mahasiswa'],
-            ['name' => 'Ketua UKM', 'slug' => 'ketua-ukm', 'description' => 'Ketua Unit Kegiatan Mahasiswa'],
-            ['name' => 'Sekretaris UKM', 'slug' => 'sekretaris-ukm', 'description' => 'Sekretaris Unit Kegiatan Mahasiswa'],
-            ['name' => 'Ketua Prodi', 'slug' => 'ketua-prodi', 'description' => 'Ketua Program Studi'],
-            ['name' => 'Sekretaris Prodi', 'slug' => 'sekretaris-prodi', 'description' => 'Sekretaris Program Studi'],
             ['name' => 'Wakil Dekan 1', 'slug' => 'wadek1', 'description' => 'Wakil Dekan Bidang Akademik dan Kemahasiswaan'],
+            ['name' => 'Kemahasiswaan Fakultas', 'slug' => 'kemahasiswaan-fakultas', 'description' => 'Kemahasiswaan Fakultas'],
+            ['name' => 'Sumber Daya Fakultas', 'slug' => 'sumber-daya-fakultas', 'description' => 'Sumber Daya Fakultas'],
+            ['name' => 'Ketua Prodi', 'slug' => 'ketua-prodi', 'description' => 'Ketua Program Studi'],
+            ['name' => 'Pembimbing Ormawa', 'slug' => 'pembimbing-ormawa', 'description' => 'Pembimbing Organisasi Mahasiswa'],
             ['name' => 'Ketua Senat', 'slug' => 'ketua-senat', 'description' => 'Ketua Senat Fakultas'],
-            ['name' => 'Sekretaris Senat', 'slug' => 'sekretaris-senat', 'description' => 'Sekretaris Senat Fakultas'],
+            ['name' => 'Ketua BEM', 'slug' => 'ketua-bem', 'description' => 'Ketua Badan Eksekutif Mahasiswa'],
+            ['name' => 'Ketua HIMA', 'slug' => 'ketua-hima', 'description' => 'Ketua Himpunan Mahasiswa'],
+            ['name' => 'Ketua UKM', 'slug' => 'ketua-ukm', 'description' => 'Ketua Unit Kegiatan Mahasiswa'],
+            ['name' => 'Sekretaris Senat', 'slug' => 'sekretaris-senat', 'description' => 'Sekretaris Senat'],
+            ['name' => 'Sekretaris BEM', 'slug' => 'sekretaris-bem', 'description' => 'Sekretaris Badan Eksekutif Mahasiswa'],
+            ['name' => 'Sekretaris HIMA', 'slug' => 'sekretaris-hima', 'description' => 'Sekretaris Himpunan Mahasiswa'],
+            ['name' => 'Sekretaris UKM', 'slug' => 'sekretaris-ukm', 'description' => 'Sekretaris Unit Kegiatan Mahasiswa'],
             ['name' => 'Mahasiswa', 'slug' => 'mahasiswa', 'description' => 'Mahasiswa biasa'],
         ];
 
@@ -40,10 +40,10 @@ class WorkflowSeeder extends Seeder
         // 2. UNITS
         $fakultas = Unit::create(['name' => 'Fakultas Teknik', 'code' => 'FT', 'category' => 'FAKULTAS', 'parent_id' => null, 'description' => 'Fakultas Teknik Universitas']);
         $senat = Unit::create(['name' => 'Senat Fakultas Teknik', 'code' => 'SENAT-FT', 'category' => 'SENAT', 'parent_id' => $fakultas->id, 'description' => 'Badan Senat Fakultas']);
-        $bemFT = Unit::create(['name' => 'BEM Fakultas Teknik', 'code' => 'BEM-FT', 'category' => 'BEM', 'parent_id' => $fakultas->id, 'description' => 'Badan Eksekutif Mahasiswa Fakultas Teknik']);
         $prodiIF = Unit::create(['name' => 'Program Studi Informatika', 'code' => 'PRODI-IF', 'category' => 'PRODI', 'parent_id' => $fakultas->id, 'description' => 'Program Studi Teknik Informatika']);
         $prodiTE = Unit::create(['name' => 'Program Studi Teknik Elektro', 'code' => 'PRODI-TE', 'category' => 'PRODI', 'parent_id' => $fakultas->id, 'description' => 'Program Studi Teknik Elektro']);
         $prodiTS = Unit::create(['name' => 'Program Studi Teknik Sipil', 'code' => 'PRODI-TS', 'category' => 'PRODI', 'parent_id' => $fakultas->id, 'description' => 'Program Studi Teknik Sipil']);
+        $bemFT = Unit::create(['name' => 'BEM Fakultas Teknik', 'code' => 'BEM-FT', 'category' => 'BEM', 'parent_id' => $senat->id, 'description' => 'Badan Eksekutif Mahasiswa Fakultas Teknik']);
         $himaIF = Unit::create(['name' => 'HIMA Informatika', 'code' => 'HIMA-IF', 'category' => 'HIMA', 'parent_id' => $prodiIF->id, 'description' => 'Himpunan Mahasiswa Informatika']);
         $himaTE = Unit::create(['name' => 'HIMA Teknik Elektro', 'code' => 'HIMA-TE', 'category' => 'HIMA', 'parent_id' => $prodiTE->id, 'description' => 'Himpunan Mahasiswa Teknik Elektro']);
         $himaTS = Unit::create(['name' => 'HIMA Teknik Sipil', 'code' => 'HIMA-TS', 'category' => 'HIMA', 'parent_id' => $prodiTS->id, 'description' => 'Himpunan Mahasiswa Teknik Sipil']);
@@ -52,30 +52,68 @@ class WorkflowSeeder extends Seeder
         // 3. USERS
         $roleadmin = Role::where('slug', 'admin')->first();
         $roleWadek1 = Role::where('slug', 'wadek1')->first();
+        $roleKemahasiswaanFakultas = Role::where('slug', 'kemahasiswaan-fakultas')->first();
+        $roleSumberDayaFakultas = Role::where('slug', 'sumber-daya-fakultas')->first();
+        $roleKaprodi = Role::where('slug', 'ketua-prodi')->first();
+        $rolePembimbingOrmawa = Role::where('slug', 'pembimbing-ormawa')->first();
         $roleKetuaSenat = Role::where('slug', 'ketua-senat')->first();
         $roleSekretarisSenat = Role::where('slug', 'sekretaris-senat')->first();
         $roleKetuaBEM = Role::where('slug', 'ketua-bem')->first();
         $roleSekretarisBEM = Role::where('slug', 'sekretaris-bem')->first();
-        $roleKaprodi = Role::where('slug', 'ketua-prodi')->first();
         $roleKetuaHima = Role::where('slug', 'ketua-hima')->first();
         $roleSekretarisHima = Role::where('slug', 'sekretaris-hima')->first();
         $roleKetuaUKM = Role::where('slug', 'ketua-ukm')->first();
+        $roleSekretarisUKM = Role::where('slug', 'sekretaris-ukm')->first();
         $roleMahasiswa = Role::where('slug', 'mahasiswa')->first();
 
+        // Users diurutkan berdasarkan role
+        // 1. Admin
         User::create(['name' => 'Mr. Adming', 'email' => 'admin@ft.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleadmin->id, 'unit_id' => $fakultas->id]);
+
+        // 2. Wakil Dekan 1
         User::create(['name' => 'Prof. Dr. Budi Santoso', 'email' => 'wadek1@ft.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleWadek1->id, 'unit_id' => $fakultas->id]);
-        User::create(['name' => 'Dr. Andi Wijaya', 'email' => 'senat@ft.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleKetuaSenat->id, 'unit_id' => $senat->id]);
-        User::create(['name' => 'Dr. Putri Maharani', 'email' => 'sekretaris.senat@ft.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleSekretarisSenat->id, 'unit_id' => $senat->id]);
-        User::create(['name' => 'Budi Setiawan', 'email' => 'ketua.bem@student.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleKetuaBEM->id, 'unit_id' => $bemFT->id]);
-        User::create(['name' => 'Sinta Kusuma', 'email' => 'sekretaris.bem@student.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleSekretarisBEM->id, 'unit_id' => $bemFT->id]);
+
+        // 3. Kemahasiswaan Fakultas
+        User::create(['name' => 'Ibu Sari Dewi', 'email' => 'kemahasiswaan.fakultas@ft.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleKemahasiswaanFakultas->id, 'unit_id' => $fakultas->id]);
+
+        // 4. Sumber Daya Fakultas
+        User::create(['name' => 'Bapak Bapak', 'email' => 'sumberdaya.fakultas@ft.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleSumberDayaFakultas->id, 'unit_id' => $fakultas->id]);
+
+        // 5. Ketua Prodi
         User::create(['name' => 'Dr. Siti Rahmawati', 'email' => 'kaprodi.if@ft.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleKaprodi->id, 'unit_id' => $prodiIF->id]);
         User::create(['name' => 'Dr. Bambang Suryadi', 'email' => 'kaprodi.te@ft.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleKaprodi->id, 'unit_id' => $prodiTE->id]);
         User::create(['name' => 'Dr. Agus Prasetyo', 'email' => 'kaprodi.ts@ft.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleKaprodi->id, 'unit_id' => $prodiTS->id]);
+
+        // 6. Pembimbing Ormawa
+        User::create(['name' => 'Bu Siapa', 'email' => 'pembimbingormawa@ft.ac.id', 'password' => Hash::make('password'), 'role_id' => $rolePembimbingOrmawa->id, 'unit_id' => $prodiIF->id]);
+
+        // 7. Ketua Senat
+        User::create(['name' => 'Andi Wijaya', 'email' => 'senat@students.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleKetuaSenat->id, 'unit_id' => $senat->id]);
+
+        // 8. Ketua BEM
+        User::create(['name' => 'Budi Setiawan', 'email' => 'ketua.bem@student.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleKetuaBEM->id, 'unit_id' => $bemFT->id]);
+
+        // 9. Ketua HIMA
         User::create(['name' => 'Ahmad Rizki', 'email' => 'ketua.hima.if@student.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleKetuaHima->id, 'unit_id' => $himaIF->id]);
-        User::create(['name' => 'Dewi Lestari', 'email' => 'sekretaris.hima.if@student.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleSekretarisHima->id, 'unit_id' => $himaIF->id]);
         User::create(['name' => 'Rudi Hartono', 'email' => 'ketua.hima.te@student.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleKetuaHima->id, 'unit_id' => $himaTE->id]);
         User::create(['name' => 'Fitri Handayani', 'email' => 'ketua.hima.ts@student.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleKetuaHima->id, 'unit_id' => $himaTS->id]);
+
+        // 10. Ketua UKM
         User::create(['name' => 'Fajar Nugroho', 'email' => 'ketua.ukm@student.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleKetuaUKM->id, 'unit_id' => $ukmOlahraga->id]);
+
+        // 11. Sekretaris Senat
+        User::create(['name' => 'Dr. Putri Maharani', 'email' => 'sekretaris.senat@students.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleSekretarisSenat->id, 'unit_id' => $senat->id]);
+
+        // 12. Sekretaris BEM
+        User::create(['name' => 'Sinta Kusuma', 'email' => 'sekretaris.bem@student.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleSekretarisBEM->id, 'unit_id' => $bemFT->id]);
+
+        // 13. Sekretaris HIMA
+        User::create(['name' => 'Dewi Lestari', 'email' => 'sekretaris.hima.if@student.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleSekretarisHima->id, 'unit_id' => $himaIF->id]);
+
+        // 14. Sekretaris UKM
+        User::create(['name' => 'Sari Melati', 'email' => 'sekretaris.ukm@student.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleSekretarisUKM->id, 'unit_id' => $ukmOlahraga->id]);
+
+        // 15. Mahasiswa
         User::create(['name' => 'Rina Kartika', 'email' => 'mahasiswa@student.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleMahasiswa->id, 'unit_id' => $himaIF->id]);
 
         // 4. WORKFLOWS

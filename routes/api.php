@@ -7,6 +7,7 @@ use App\Http\Controllers\WorkflowController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\UserController;
 
 // Get authenticated user
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
@@ -60,5 +61,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/', [RoleController::class, 'store']);          // Buat role (admin)
         Route::put('/{id}', [RoleController::class, 'update']);      // Update role (admin)
         Route::delete('/{id}', [RoleController::class, 'destroy']);  // Hapus role (admin)
+    });
+
+    // User Routes
+    Route::prefix('users')->group(function () {
+        Route::get('/', [UserController::class, 'index']);           // List users
+        Route::get('/{id}', [UserController::class, 'show']);        // Detail user
+        Route::post('/', [UserController::class, 'store']);          // Buat user (admin)
+        Route::put('/{id}', [UserController::class, 'update']);      // Update user (admin)
+        Route::delete('/{id}', [UserController::class, 'destroy']);  // Hapus user (admin)
     });
 });
