@@ -57,6 +57,32 @@ class Document extends Model
     }
 
     /**
+     * Relasi: Booking ruangan untuk dokumen ini (optional)
+     * Satu dokumen bisa punya banyak booking ruangan
+     */
+    public function roomBookings()
+    {
+        return $this->hasMany(RoomBooking::class);
+    }
+
+    /**
+     * Helper: Cek apakah dokumen ini memiliki peminjaman ruangan
+     */
+    public function hasRoomBooking(): bool
+    {
+        return $this->roomBookings()->exists();
+    }
+
+    /**
+     * Helper: Get booking ruangan yang aktif (approved/pending)
+     */
+    public function activeRoomBookings()
+    {
+        return $this->roomBookings()
+                    ->whereIn('status', ['PENDING', 'APPROVED']);
+    }
+
+    /**
      * Scope: Filter dokumen berdasarkan status
      */
     public function scopeStatus($query, $status)

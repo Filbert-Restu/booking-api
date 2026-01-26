@@ -8,6 +8,8 @@ use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\RoomController;
+use App\Http\Controllers\RoomBookingController;
 
 // Get authenticated user
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
@@ -70,5 +72,38 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/', [UserController::class, 'store']);          // Buat user (admin)
         Route::put('/{id}', [UserController::class, 'update']);      // Update user (admin)
         Route::delete('/{id}', [UserController::class, 'destroy']);  // Hapus user (admin)
+    });
+
+    // Room Routes (Ruangan)
+    Route::prefix('rooms')->group(function () {
+        Route::get('/', [RoomController::class, 'index']);                              // List rooms dengan filter
+        Route::get('/{id}', [RoomController::class, 'show']);                           // Detail room + upcoming bookings
+        Route::post('/', [RoomController::class, 'store']);                             // Buat room baru (admin/unit manager)
+        Route::put('/{id}', [RoomController::class, 'update']);                         // Update room
+        Route::delete('/{id}', [RoomController::class, 'destroy']);                     // Hapus room (soft delete)
+        
+        // Room Availability & Schedule
+        Route::post('/{id}/check-availability', [RoomController::class, 'checkAvailability']); // Cek ketersediaan
+        Route::get('/{id}/schedule', [RoomController::class, 'schedule']);              // Jadwal booking
+        
+        // Room Images
+        Route::post('/{id}/upload-image', [RoomController::class, 'uploadImage']);      // Upload foto
+        Route::delete('/{id}/images', [RoomController::class, 'deleteImage']);          // Hapus foto
+    });
+
+    // Room Booking Routes (Peminjaman Ruangan)
+    Route::prefix('room-bookings')->group(function () {
+        Route::get('/', [RoomBookingController::class, 'index']);                       // List bookings dengan filter
+        Route::get('/statistics', [RoomBookingController::class, 'statistics']);        // Statistik booking
+        Route::get('/{id}', [RoomBookingController::class, 'show']);                    // Detail booking
+        Route::post('/', [RoomBookingController::class, 'store']);                      // Buat booking baru (wajib ada document)
+        Route::put('/{id}', [RoomBookingController::class, 'update']);                  // Update booking (hanya PENDING)
+        Route::delete('/{id}', [RoomBookingController::class, 'destroy']);              // Hapus booking (soft delete)
+        
+        // Booking Actions
+        Route::post('/{id}/approve', [RoomBookingController::class, 'approve']);        // Approve booking (room manager/admin)
+        Route::post('/{id}/reject', [RoomBookingController::class, 'reject']);          // Reject booking (room manager/admin)
+        Route::post('/{id}/cancel', [RoomBookingController::class, 'cancel']);          // Cancel booking (booker)
+        Route::post('/{id}/complete', [RoomBookingController::class, 'complete']);      // Complete booking
     });
 });

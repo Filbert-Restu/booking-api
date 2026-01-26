@@ -44,4 +44,19 @@ class Unit extends Model
     {
         return $this->hasMany(Document::class);
     }
+
+    /**
+     * Relasi: Booking ruangan yang dilakukan unit ini (via users)
+     */
+    public function roomBookings()
+    {
+        return $this->hasManyThrough(
+            RoomBooking::class,
+            User::class,
+            'unit_id',    // Foreign key on users table
+            'booked_by',  // Foreign key on room_bookings table
+            'id',         // Local key on units table
+            'id'          // Local key on users table
+        );
+    }
 }
