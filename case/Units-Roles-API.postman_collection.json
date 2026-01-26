@@ -1,0 +1,641 @@
+{
+  "info": {
+    "name": "Units & Roles API - Complete Test Cases",
+    "description": "API Collection untuk Units dan Roles Management (Bearer Token Auth)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "unit_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "role_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth Setup",
+      "item": [
+        {
+          "name": "Login as Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response.token) {",
+                  "    pm.collectionVariables.set('auth_token', response.token);",
+                  "    console.log('Bearer token saved:', response.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"admin@ft.ac.id\",\n    \"password\": \"password\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/login",
+              "host": ["{{base_url}}"],
+              "path": ["login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Units Management",
+      "item": [
+        {
+          "name": "List - Get All Units",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/units",
+              "host": ["{{base_url}}"],
+              "path": ["units"]
+            }
+          }
+        },
+        {
+          "name": "List - Filter by Status ACTIVE",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/units?status=ACTIVE",
+              "host": ["{{base_url}}"],
+              "path": ["units"],
+              "query": [{ "key": "status", "value": "ACTIVE" }]
+            }
+          }
+        },
+        {
+          "name": "List - Search by Name",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/units?search=teknik",
+              "host": ["{{base_url}}"],
+              "path": ["units"],
+              "query": [{ "key": "search", "value": "teknik" }]
+            }
+          }
+        },
+        {
+          "name": "Detail - Get Unit by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/units/1",
+              "host": ["{{base_url}}"],
+              "path": ["units", "1"]
+            }
+          }
+        },
+        {
+          "name": "Create - Jurusan Unit",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response.data && response.data.id) {",
+                  "    pm.collectionVariables.set('unit_id', response.data.id);",
+                  "    console.log('Unit ID saved:', response.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Jurusan Teknik Informatika\",\n    \"code\": \"TI\",\n    \"description\": \"Jurusan Teknik Informatika Fakultas Teknik\",\n    \"status\": \"ACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/units",
+              "host": ["{{base_url}}"],
+              "path": ["units"]
+            }
+          }
+        },
+        {
+          "name": "Create - Departemen Unit",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Bagian Umum dan Perlengkapan\",\n    \"code\": \"BUP\",\n    \"description\": \"Departemen yang mengelola fasilitas dan perlengkapan kampus\",\n    \"status\": \"ACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/units",
+              "host": ["{{base_url}}"],
+              "path": ["units"]
+            }
+          }
+        },
+        {
+          "name": "Create - Laboratorium Unit",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Laboratorium Komputer\",\n    \"code\": \"LABKOM\",\n    \"description\": \"Unit pengelola laboratorium komputer dan jaringan\",\n    \"status\": \"ACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/units",
+              "host": ["{{base_url}}"],
+              "path": ["units"]
+            }
+          }
+        },
+        {
+          "name": "Create - Organisasi Mahasiswa",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"HIMA Teknik Informatika\",\n    \"code\": \"HIMATI\",\n    \"description\": \"Himpunan Mahasiswa Jurusan Teknik Informatika\",\n    \"status\": \"ACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/units",
+              "host": ["{{base_url}}"],
+              "path": ["units"]
+            }
+          }
+        },
+        {
+          "name": "Create - Validation Error (Missing Name)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"code\": \"TEST\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/units",
+              "host": ["{{base_url}}"],
+              "path": ["units"]
+            }
+          }
+        },
+        {
+          "name": "Create - Duplicate Code Error",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Duplicate Unit\",\n    \"code\": \"TI\",\n    \"status\": \"ACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/units",
+              "host": ["{{base_url}}"],
+              "path": ["units"]
+            }
+          }
+        },
+        {
+          "name": "Update - Unit Information",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"description\": \"Jurusan Teknik Informatika Fakultas Teknik - Program Studi Terakreditasi A\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/units/{{unit_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["units", "{{unit_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update - Set to Inactive",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"INACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/units/5",
+              "host": ["{{base_url}}"],
+              "path": ["units", "5"]
+            }
+          }
+        },
+        {
+          "name": "Delete - Unit (Soft Delete)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/units/6",
+              "host": ["{{base_url}}"],
+              "path": ["units", "6"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Roles Management",
+      "item": [
+        {
+          "name": "List - Get All Roles",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/roles",
+              "host": ["{{base_url}}"],
+              "path": ["roles"]
+            }
+          }
+        },
+        {
+          "name": "List - Filter by Status ACTIVE",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/roles?status=ACTIVE",
+              "host": ["{{base_url}}"],
+              "path": ["roles"],
+              "query": [{ "key": "status", "value": "ACTIVE" }]
+            }
+          }
+        },
+        {
+          "name": "List - Search by Name",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/roles?search=admin",
+              "host": ["{{base_url}}"],
+              "path": ["roles"],
+              "query": [{ "key": "search", "value": "admin" }]
+            }
+          }
+        },
+        {
+          "name": "Detail - Get Role by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/roles/1",
+              "host": ["{{base_url}}"],
+              "path": ["roles", "1"]
+            }
+          }
+        },
+        {
+          "name": "Create - Admin Role",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response.data && response.data.id) {",
+                  "    pm.collectionVariables.set('role_id', response.data.id);",
+                  "    console.log('Role ID saved:', response.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Administrator\",\n    \"slug\": \"admin\",\n    \"description\": \"Full system access - dapat mengelola semua aspek sistem\",\n    \"permissions\": [\"manage_all\", \"approve_all\", \"view_all\", \"delete_all\"],\n    \"status\": \"ACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/roles",
+              "host": ["{{base_url}}"],
+              "path": ["roles"]
+            }
+          }
+        },
+        {
+          "name": "Create - Staff Role",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Staff\",\n    \"slug\": \"staff\",\n    \"description\": \"Staff fakultas yang dapat membuat dan submit dokumen\",\n    \"permissions\": [\"create_document\", \"submit_document\", \"view_own_document\", \"book_room\"],\n    \"status\": \"ACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/roles",
+              "host": ["{{base_url}}"],
+              "path": ["roles"]
+            }
+          }
+        },
+        {
+          "name": "Create - Ketua Jurusan Role",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Ketua Jurusan\",\n    \"slug\": \"ketua-jurusan\",\n    \"description\": \"Ketua Jurusan - dapat approve dokumen level jurusan\",\n    \"permissions\": [\"approve_department\", \"view_department_documents\", \"create_document\"],\n    \"status\": \"ACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/roles",
+              "host": ["{{base_url}}"],
+              "path": ["roles"]
+            }
+          }
+        },
+        {
+          "name": "Create - Dekan Role",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Dekan\",\n    \"slug\": \"dekan\",\n    \"description\": \"Dekan Fakultas - approval tertinggi\",\n    \"permissions\": [\"approve_faculty\", \"view_all_documents\", \"final_approval\"],\n    \"status\": \"ACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/roles",
+              "host": ["{{base_url}}"],
+              "path": ["roles"]
+            }
+          }
+        },
+        {
+          "name": "Create - Student Role",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Mahasiswa\",\n    \"slug\": \"student\",\n    \"description\": \"Mahasiswa - dapat membuat pengajuan melalui organisasi\",\n    \"permissions\": [\"create_document\", \"view_own_document\"],\n    \"status\": \"ACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/roles",
+              "host": ["{{base_url}}"],
+              "path": ["roles"]
+            }
+          }
+        },
+        {
+          "name": "Create - Room Manager Role",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Pengelola Ruangan\",\n    \"slug\": \"room-manager\",\n    \"description\": \"Pengelola ruangan - approve booking ruangan\",\n    \"permissions\": [\"approve_room_booking\", \"manage_rooms\", \"view_bookings\"],\n    \"status\": \"ACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/roles",
+              "host": ["{{base_url}}"],
+              "path": ["roles"]
+            }
+          }
+        },
+        {
+          "name": "Create - Validation Error (Missing Slug)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Test Role\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/roles",
+              "host": ["{{base_url}}"],
+              "path": ["roles"]
+            }
+          }
+        },
+        {
+          "name": "Create - Duplicate Slug Error",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Admin Duplicate\",\n    \"slug\": \"admin\",\n    \"status\": \"ACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/roles",
+              "host": ["{{base_url}}"],
+              "path": ["roles"]
+            }
+          }
+        },
+        {
+          "name": "Update - Add Permissions",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"permissions\": [\"create_document\", \"submit_document\", \"view_own_document\", \"book_room\", \"cancel_own_booking\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/roles/{{role_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["roles", "{{role_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update - Change Description",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"description\": \"Staff fakultas yang dapat membuat dokumen, submit ke workflow, dan melakukan booking ruangan\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/roles/2",
+              "host": ["{{base_url}}"],
+              "path": ["roles", "2"]
+            }
+          }
+        },
+        {
+          "name": "Update - Set to Inactive",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"INACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/roles/7",
+              "host": ["{{base_url}}"],
+              "path": ["roles", "7"]
+            }
+          }
+        },
+        {
+          "name": "Delete - Role (Soft Delete)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/roles/8",
+              "host": ["{{base_url}}"],
+              "path": ["roles", "8"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

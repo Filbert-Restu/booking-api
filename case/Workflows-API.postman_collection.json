@@ -1,0 +1,588 @@
+{
+  "info": {
+    "name": "Workflows API - Complete Test Cases",
+    "description": "API Collection untuk Workflow Management System (Bearer Token Auth)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "workflow_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "step_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth Setup",
+      "item": [
+        {
+          "name": "Login as Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response.token) {",
+                  "    pm.collectionVariables.set('auth_token', response.token);",
+                  "    console.log('Bearer token saved:', response.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"admin@ft.ac.id\",\n    \"password\": \"password\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/login",
+              "host": ["{{base_url}}"],
+              "path": ["login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Workflows - List & Filter",
+      "item": [
+        {
+          "name": "List - Get All Workflows",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/workflows",
+              "host": ["{{base_url}}"],
+              "path": ["workflows"]
+            }
+          }
+        },
+        {
+          "name": "List - Filter by Status ACTIVE",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/workflows?status=ACTIVE",
+              "host": ["{{base_url}}"],
+              "path": ["workflows"],
+              "query": [{ "key": "status", "value": "ACTIVE" }]
+            }
+          }
+        },
+        {
+          "name": "List - Filter by Status INACTIVE",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/workflows?status=INACTIVE",
+              "host": ["{{base_url}}"],
+              "path": ["workflows"],
+              "query": [{ "key": "status", "value": "INACTIVE" }]
+            }
+          }
+        },
+        {
+          "name": "List - Search by Name",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/workflows?search=peminjaman",
+              "host": ["{{base_url}}"],
+              "path": ["workflows"],
+              "query": [{ "key": "search", "value": "peminjaman" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Workflows - CRUD Operations",
+      "item": [
+        {
+          "name": "Detail - Get Workflow by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/workflows/1",
+              "host": ["{{base_url}}"],
+              "path": ["workflows", "1"]
+            }
+          }
+        },
+        {
+          "name": "Create - Room Booking Workflow",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response.data && response.data.id) {",
+                  "    pm.collectionVariables.set('workflow_id', response.data.id);",
+                  "    console.log('Workflow ID saved:', response.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Workflow Peminjaman Ruangan\",\n    \"description\": \"Alur persetujuan untuk peminjaman ruangan kampus\",\n    \"status\": \"ACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/workflows",
+              "host": ["{{base_url}}"],
+              "path": ["workflows"]
+            }
+          }
+        },
+        {
+          "name": "Create - Equipment Loan Workflow",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Workflow Peminjaman Peralatan\",\n    \"description\": \"Alur persetujuan untuk peminjaman peralatan laboratorium dan sound system\",\n    \"status\": \"ACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/workflows",
+              "host": ["{{base_url}}"],
+              "path": ["workflows"]
+            }
+          }
+        },
+        {
+          "name": "Create - Event Permission Workflow",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Workflow Izin Kegiatan\",\n    \"description\": \"Alur persetujuan untuk kegiatan mahasiswa di kampus\",\n    \"status\": \"ACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/workflows",
+              "host": ["{{base_url}}"],
+              "path": ["workflows"]
+            }
+          }
+        },
+        {
+          "name": "Create - Multi-Level Approval Workflow",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Workflow Persetujuan Dana\",\n    \"description\": \"Alur persetujuan pengajuan dana dengan multiple level approval\",\n    \"status\": \"ACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/workflows",
+              "host": ["{{base_url}}"],
+              "path": ["workflows"]
+            }
+          }
+        },
+        {
+          "name": "Create - Validation Error (Missing Name)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"description\": \"Test Workflow\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/workflows",
+              "host": ["{{base_url}}"],
+              "path": ["workflows"]
+            }
+          }
+        },
+        {
+          "name": "Update - Change Name and Description",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Workflow Peminjaman Ruangan - Updated\",\n    \"description\": \"Alur persetujuan untuk peminjaman ruangan kampus dengan validasi kapasitas dan ketersediaan\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/workflows/{{workflow_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["workflows", "{{workflow_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update - Set to Inactive",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"INACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/workflows/3",
+              "host": ["{{base_url}}"],
+              "path": ["workflows", "3"]
+            }
+          }
+        },
+        {
+          "name": "Update - Reactivate Workflow",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"ACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/workflows/3",
+              "host": ["{{base_url}}"],
+              "path": ["workflows", "3"]
+            }
+          }
+        },
+        {
+          "name": "Delete - Workflow (Soft Delete)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/workflows/5",
+              "host": ["{{base_url}}"],
+              "path": ["workflows", "5"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Workflow Steps Management",
+      "item": [
+        {
+          "name": "Add Step - Ketua Jurusan Review",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response.data && response.data.steps && response.data.steps.length > 0) {",
+                  "    const lastStep = response.data.steps[response.data.steps.length - 1];",
+                  "    pm.collectionVariables.set('step_id', lastStep.id);",
+                  "    console.log('Step ID saved:', lastStep.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"step_order\": 1,\n    \"role_id\": 2,\n    \"step_name\": \"Review Ketua Jurusan\",\n    \"description\": \"Persetujuan awal dari Ketua Jurusan\",\n    \"is_required\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/workflows/{{workflow_id}}/steps",
+              "host": ["{{base_url}}"],
+              "path": ["workflows", "{{workflow_id}}", "steps"]
+            }
+          }
+        },
+        {
+          "name": "Add Step - Wakil Dekan Approval",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"step_order\": 2,\n    \"role_id\": 3,\n    \"step_name\": \"Persetujuan Wakil Dekan\",\n    \"description\": \"Persetujuan dari Wakil Dekan Bidang Kemahasiswaan\",\n    \"is_required\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/workflows/{{workflow_id}}/steps",
+              "host": ["{{base_url}}"],
+              "path": ["workflows", "{{workflow_id}}", "steps"]
+            }
+          }
+        },
+        {
+          "name": "Add Step - Final Dekan Approval",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"step_order\": 3,\n    \"role_id\": 4,\n    \"step_name\": \"Persetujuan Akhir Dekan\",\n    \"description\": \"Persetujuan final dari Dekan Fakultas\",\n    \"is_required\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/workflows/{{workflow_id}}/steps",
+              "host": ["{{base_url}}"],
+              "path": ["workflows", "{{workflow_id}}", "steps"]
+            }
+          }
+        },
+        {
+          "name": "Add Step - Optional Finance Review",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"step_order\": 2,\n    \"role_id\": 5,\n    \"step_name\": \"Review Keuangan\",\n    \"description\": \"Review optional untuk kegiatan yang memerlukan dana\",\n    \"is_required\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/workflows/2/steps",
+              "host": ["{{base_url}}"],
+              "path": ["workflows", "2", "steps"]
+            }
+          }
+        },
+        {
+          "name": "Add Step - Validation Error (Missing Role)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"step_order\": 1,\n    \"step_name\": \"Test Step\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/workflows/1/steps",
+              "host": ["{{base_url}}"],
+              "path": ["workflows", "1", "steps"]
+            }
+          }
+        },
+        {
+          "name": "Update Step - Change Description",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"description\": \"Persetujuan awal dari Ketua Jurusan untuk memastikan kegiatan sesuai dengan program jurusan\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/workflows/{{workflow_id}}/steps/{{step_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["workflows", "{{workflow_id}}", "steps", "{{step_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Step - Change Order",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"step_order\": 2\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/workflows/1/steps/1",
+              "host": ["{{base_url}}"],
+              "path": ["workflows", "1", "steps", "1"]
+            }
+          }
+        },
+        {
+          "name": "Update Step - Make Optional",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"is_required\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/workflows/1/steps/2",
+              "host": ["{{base_url}}"],
+              "path": ["workflows", "1", "steps", "2"]
+            }
+          }
+        },
+        {
+          "name": "Delete Step",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/workflows/1/steps/3",
+              "host": ["{{base_url}}"],
+              "path": ["workflows", "1", "steps", "3"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Workflow Templates Examples",
+      "item": [
+        {
+          "name": "Example - Simple 1-Step Workflow",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Workflow Sederhana\",\n    \"description\": \"Workflow dengan 1 step approval\",\n    \"status\": \"ACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/workflows",
+              "host": ["{{base_url}}"],
+              "path": ["workflows"]
+            },
+            "description": "Create simple workflow, then add 1 step for admin approval"
+          }
+        },
+        {
+          "name": "Example - Complex Multi-Step Workflow",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Workflow Kompleks Multi-Level\",\n    \"description\": \"Workflow dengan 5+ level approval untuk kegiatan besar\",\n    \"status\": \"ACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/workflows",
+              "host": ["{{base_url}}"],
+              "path": ["workflows"]
+            },
+            "description": "Create complex workflow with multiple approval levels"
+          }
+        }
+      ]
+    }
+  ]
+}

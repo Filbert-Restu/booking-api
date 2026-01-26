@@ -1,0 +1,626 @@
+{
+  "info": {
+    "name": "Documents API - Complete Test Cases",
+    "description": "API Collection untuk Document Management dengan Workflow Integration (Bearer Token Auth)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "document_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth Setup",
+      "item": [
+        {
+          "name": "Login as Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response.token) {",
+                  "    pm.collectionVariables.set('auth_token', response.token);",
+                  "    console.log('Bearer token saved:', response.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"admin@ft.ac.id\",\n    \"password\": \"password\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/login",
+              "host": ["{{base_url}}"],
+              "path": ["login"]
+            }
+          }
+        },
+        {
+          "name": "Login as Staff",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response.token) {",
+                  "    pm.collectionVariables.set('auth_token', response.token);",
+                  "    console.log('Bearer token saved:', response.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"staff@ft.ac.id\",\n    \"password\": \"password\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/login",
+              "host": ["{{base_url}}"],
+              "path": ["login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Documents - List & Filter",
+      "item": [
+        {
+          "name": "List - Get All Documents",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/documents",
+              "host": ["{{base_url}}"],
+              "path": ["documents"]
+            }
+          }
+        },
+        {
+          "name": "List - My Documents Only",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/documents?my_documents=true",
+              "host": ["{{base_url}}"],
+              "path": ["documents"],
+              "query": [{ "key": "my_documents", "value": "true" }]
+            }
+          }
+        },
+        {
+          "name": "List - Documents I Need to Action",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/documents?need_action=true",
+              "host": ["{{base_url}}"],
+              "path": ["documents"],
+              "query": [{ "key": "need_action", "value": "true" }]
+            }
+          }
+        },
+        {
+          "name": "List - Filter by Status DRAFT",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/documents?status=DRAFT",
+              "host": ["{{base_url}}"],
+              "path": ["documents"],
+              "query": [{ "key": "status", "value": "DRAFT" }]
+            }
+          }
+        },
+        {
+          "name": "List - Filter by Status IN_REVIEW",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/documents?status=IN_REVIEW",
+              "host": ["{{base_url}}"],
+              "path": ["documents"],
+              "query": [{ "key": "status", "value": "IN_REVIEW" }]
+            }
+          }
+        },
+        {
+          "name": "List - Filter by Status APPROVED",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/documents?status=APPROVED",
+              "host": ["{{base_url}}"],
+              "path": ["documents"],
+              "query": [{ "key": "status", "value": "APPROVED" }]
+            }
+          }
+        },
+        {
+          "name": "List - Filter by Status REJECTED",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/documents?status=REJECTED",
+              "host": ["{{base_url}}"],
+              "path": ["documents"],
+              "query": [{ "key": "status", "value": "REJECTED" }]
+            }
+          }
+        },
+        {
+          "name": "List - Filter by Workflow",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/documents?workflow_id=1",
+              "host": ["{{base_url}}"],
+              "path": ["documents"],
+              "query": [{ "key": "workflow_id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "List - Search by Title",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/documents?search=peminjaman",
+              "host": ["{{base_url}}"],
+              "path": ["documents"],
+              "query": [{ "key": "search", "value": "peminjaman" }]
+            }
+          }
+        },
+        {
+          "name": "List - Multiple Filters Combined",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/documents?status=IN_REVIEW&workflow_id=1&my_documents=false&need_action=true",
+              "host": ["{{base_url}}"],
+              "path": ["documents"],
+              "query": [
+                { "key": "status", "value": "IN_REVIEW" },
+                { "key": "workflow_id", "value": "1" },
+                { "key": "my_documents", "value": "false" },
+                { "key": "need_action", "value": "true" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Documents - CRUD Operations",
+      "item": [
+        {
+          "name": "Detail - Get Document by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/documents/1",
+              "host": ["{{base_url}}"],
+              "path": ["documents", "1"]
+            }
+          }
+        },
+        {
+          "name": "Create - Room Booking Request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response.data && response.data.id) {",
+                  "    pm.collectionVariables.set('document_id', response.data.id);",
+                  "    console.log('Document ID saved:', response.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"workflow_id\": 1,\n    \"title\": \"Permohonan Peminjaman Aula untuk Seminar Nasional\",\n    \"content\": {\n        \"event_name\": \"Seminar Nasional Teknologi Informasi 2026\",\n        \"event_date\": \"2026-03-20\",\n        \"organizer\": \"HIMA Teknik Informatika\",\n        \"contact_person\": \"Ahmad Rizki\",\n        \"phone\": \"081234567890\",\n        \"participants\": 200,\n        \"purpose\": \"Seminar nasional dengan pembicara dari berbagai universitas\"\n    }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/documents",
+              "host": ["{{base_url}}"],
+              "path": ["documents"]
+            }
+          }
+        },
+        {
+          "name": "Create - Equipment Loan Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"workflow_id\": 2,\n    \"title\": \"Peminjaman Peralatan Sound System\",\n    \"content\": {\n        \"items\": [\"Mixer Audio\", \"Speaker Aktif\", \"2 Microphone Wireless\"],\n        \"borrow_date\": \"2026-02-15\",\n        \"return_date\": \"2026-02-16\",\n        \"purpose\": \"Workshop Mobile Development\",\n        \"responsible_person\": \"Budi Santoso\"\n    }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/documents",
+              "host": ["{{base_url}}"],
+              "path": ["documents"]
+            }
+          }
+        },
+        {
+          "name": "Create - General Permission Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"workflow_id\": 1,\n    \"title\": \"Izin Kegiatan Study Tour\",\n    \"content\": {\n        \"activity\": \"Study Tour ke Perusahaan Teknologi\",\n        \"date\": \"2026-03-25\",\n        \"destination\": \"Jakarta\",\n        \"participants_count\": 45,\n        \"duration\": \"1 hari\",\n        \"purpose\": \"Pembelajaran di industri teknologi\"\n    }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/documents",
+              "host": ["{{base_url}}"],
+              "path": ["documents"]
+            }
+          }
+        },
+        {
+          "name": "Create - Validation Error (Missing Workflow)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"Test Document\",\n    \"content\": {\"test\": \"data\"}\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/documents",
+              "host": ["{{base_url}}"],
+              "path": ["documents"]
+            }
+          }
+        },
+        {
+          "name": "Update - Edit Draft Document",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"Permohonan Peminjaman Aula untuk Seminar Nasional - Updated\",\n    \"content\": {\n        \"event_name\": \"Seminar Nasional Teknologi Informasi 2026\",\n        \"event_date\": \"2026-03-20\",\n        \"organizer\": \"HIMA Teknik Informatika\",\n        \"contact_person\": \"Ahmad Rizki Pratama\",\n        \"phone\": \"081234567890\",\n        \"participants\": 250,\n        \"purpose\": \"Seminar nasional dengan pembicara dari berbagai universitas ternama\",\n        \"additional_notes\": \"Memerlukan setup panggung dan sound system profesional\"\n    }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/documents/{{document_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["documents", "{{document_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update - Error When Not Draft",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"Try to update approved document\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/documents/1",
+              "host": ["{{base_url}}"],
+              "path": ["documents", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Workflow Actions",
+      "item": [
+        {
+          "name": "Submit - Document for Review",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/documents/{{document_id}}/submit",
+              "host": ["{{base_url}}"],
+              "path": ["documents", "{{document_id}}", "submit"]
+            }
+          }
+        },
+        {
+          "name": "Submit - Error When Already Submitted",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/documents/1/submit",
+              "host": ["{{base_url}}"],
+              "path": ["documents", "1", "submit"]
+            }
+          }
+        },
+        {
+          "name": "Approve - Document",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"notes\": \"Permohonan disetujui. Silakan koordinasi dengan bagian umum untuk persiapan.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/documents/1/approve",
+              "host": ["{{base_url}}"],
+              "path": ["documents", "1", "approve"]
+            }
+          }
+        },
+        {
+          "name": "Approve - With No Notes",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/documents/2/approve",
+              "host": ["{{base_url}}"],
+              "path": ["documents", "2", "approve"]
+            }
+          }
+        },
+        {
+          "name": "Approve - Error Not Current Holder",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/documents/3/approve",
+              "host": ["{{base_url}}"],
+              "path": ["documents", "3", "approve"]
+            }
+          }
+        },
+        {
+          "name": "Reject - Document",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"reason\": \"Permohonan ditolak karena jadwal bertabrakan dengan acara lain yang sudah terjadwal.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/documents/3/reject",
+              "host": ["{{base_url}}"],
+              "path": ["documents", "3", "reject"]
+            }
+          }
+        },
+        {
+          "name": "Reject - Validation Error (Missing Reason)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/documents/4/reject",
+              "host": ["{{base_url}}"],
+              "path": ["documents", "4", "reject"]
+            }
+          }
+        },
+        {
+          "name": "Revise - Request Changes",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"notes\": \"Mohon dilengkapi informasi berikut: 1) Rundown acara detail, 2) Susunan panitia lengkap, 3) RAB (Rencana Anggaran Biaya)\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/documents/5/revise",
+              "host": ["{{base_url}}"],
+              "path": ["documents", "5", "revise"]
+            }
+          }
+        },
+        {
+          "name": "Revise - Validation Error (Missing Notes)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/documents/5/revise",
+              "host": ["{{base_url}}"],
+              "path": ["documents", "5", "revise"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Document History & Logs",
+      "item": [
+        {
+          "name": "Get Document History",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/documents/1",
+              "host": ["{{base_url}}"],
+              "path": ["documents", "1"]
+            },
+            "description": "Detail document includes workflow history and logs"
+          }
+        }
+      ]
+    }
+  ]
+}

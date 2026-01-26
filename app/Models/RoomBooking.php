@@ -115,7 +115,7 @@ class RoomBooking extends Model
     /**
      * Cancel booking
      */
-    public function cancel(string $reason = null): void
+    public function cancel(string $reason): void
     {
         $this->update([
             'status' => 'CANCELLED',

@@ -1,0 +1,1110 @@
+{
+  "info": {
+    "name": "Booking API - Complete Test Cases",
+    "description": "Comprehensive API Collection untuk Sistem Peminjaman Tempat dengan Workflow (Bearer Token Auth) - All Test Cases",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Test User\",\n    \"email\": \"test@example.com\",\n    \"password\": \"password123\",\n    \"password_confirmation\": \"password123\",\n    \"role_id\": 1,\n    \"unit_id\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/register",
+              "host": ["{{base_url}}"],
+              "path": ["register"]
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response.token) {",
+                  "    pm.collectionVariables.set('auth_token', response.token);",
+                  "    console.log('Bearer token saved:', response.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"admin@ft.ac.id\",\n    \"password\": \"password\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/login",
+              "host": ["{{base_url}}"],
+              "path": ["login"]
+            }
+          }
+        },
+        {
+          "name": "Login - Invalid Credentials",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"admin@ft.ac.id\",\n    \"password\": \"wrongpassword\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/login",
+              "host": ["{{base_url}}"],
+              "path": ["login"]
+            }
+          }
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user",
+              "host": ["{{base_url}}"],
+              "path": ["user"]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/logout",
+              "host": ["{{base_url}}"],
+              "path": ["logout"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Rooms",
+      "item": [
+        {
+          "name": "List - Get All Rooms",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rooms",
+              "host": ["{{base_url}}"],
+              "path": ["rooms"]
+            }
+          }
+        },
+        {
+          "name": "List - Filter by Status ACTIVE",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rooms?status=ACTIVE",
+              "host": ["{{base_url}}"],
+              "path": ["rooms"],
+              "query": [{ "key": "status", "value": "ACTIVE" }]
+            }
+          }
+        },
+        {
+          "name": "List - Filter by Status MAINTENANCE",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rooms?status=MAINTENANCE",
+              "host": ["{{base_url}}"],
+              "path": ["rooms"],
+              "query": [{ "key": "status", "value": "MAINTENANCE" }]
+            }
+          }
+        },
+        {
+          "name": "List - Filter by Minimum Capacity",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rooms?capacity_min=50",
+              "host": ["{{base_url}}"],
+              "path": ["rooms"],
+              "query": [{ "key": "capacity_min", "value": "50" }]
+            }
+          }
+        },
+        {
+          "name": "List - Search by Name",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rooms?search=aula",
+              "host": ["{{base_url}}"],
+              "path": ["rooms"],
+              "query": [{ "key": "search", "value": "aula" }]
+            }
+          }
+        },
+        {
+          "name": "List - Multiple Filters Combined",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rooms?status=ACTIVE&capacity_min=30&search=lab",
+              "host": ["{{base_url}}"],
+              "path": ["rooms"],
+              "query": [
+                { "key": "status", "value": "ACTIVE" },
+                { "key": "capacity_min", "value": "30" },
+                { "key": "search", "value": "lab" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List - Available on Specific Date/Time",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rooms?available_date=2026-02-15&available_start=09:00&available_end=12:00",
+              "host": ["{{base_url}}"],
+              "path": ["rooms"],
+              "query": [
+                { "key": "available_date", "value": "2026-02-15" },
+                { "key": "available_start", "value": "09:00" },
+                { "key": "available_end", "value": "12:00" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List - Available with Capacity Filter",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rooms?available_date=2026-02-20&available_start=14:00&available_end=17:00&capacity_min=100",
+              "host": ["{{base_url}}"],
+              "path": ["rooms"],
+              "query": [
+                { "key": "available_date", "value": "2026-02-20" },
+                { "key": "available_start", "value": "14:00" },
+                { "key": "available_end", "value": "17:00" },
+                { "key": "capacity_min", "value": "100" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Detail - Get Room by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rooms/1",
+              "host": ["{{base_url}}"],
+              "path": ["rooms", "1"]
+            }
+          }
+        },
+        {
+          "name": "Create - New Room Aula",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Aula Serba Guna\",\n    \"code\": \"ASG-01\",\n    \"capacity\": 150,\n    \"facilities\": [\"Proyektor\", \"AC\", \"Sound System\", \"Wifi\", \"Meja Lipat\"],\n    \"status\": \"ACTIVE\",\n    \"description\": \"Aula serbaguna untuk berbagai kegiatan - Gedung D Lantai 1\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/rooms",
+              "host": ["{{base_url}}"],
+              "path": ["rooms"]
+            }
+          }
+        },
+        {
+          "name": "Create - New Lab",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Lab Jaringan Komputer\",\n    \"code\": \"LJK-01\",\n    \"capacity\": 35,\n    \"facilities\": [\"Proyektor\", \"AC\", \"Wifi\", \"35 PC\", \"Router\", \"Switch\"],\n    \"status\": \"ACTIVE\",\n    \"description\": \"Lab jaringan untuk praktikum - Gedung B Lantai 3\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/rooms",
+              "host": ["{{base_url}}"],
+              "path": ["rooms"]
+            }
+          }
+        },
+        {
+          "name": "Create - Meeting Room",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Ruang Rapat Dekan\",\n    \"code\": \"RRD-01\",\n    \"capacity\": 15,\n    \"facilities\": [\"TV LED\", \"AC\", \"Wifi\", \"Whiteboard\", \"Meja Conference\", \"Teleconference\"],\n    \"status\": \"ACTIVE\",\n    \"description\": \"Ruang rapat eksklusif Dekanat - Gedung Rektorat Lantai 2\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/rooms",
+              "host": ["{{base_url}}"],
+              "path": ["rooms"]
+            }
+          }
+        },
+        {
+          "name": "Create - Validation Error (Missing Required)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Test Room\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/rooms",
+              "host": ["{{base_url}}"],
+              "path": ["rooms"]
+            }
+          }
+        },
+        {
+          "name": "Create - Duplicate Code Error",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Duplicate Room\",\n    \"code\": \"AU-01\",\n    \"capacity\": 50,\n    \"facilities\": [\"Proyektor\"],\n    \"status\": \"ACTIVE\",\n    \"description\": \"This should fail - duplicate code\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/rooms",
+              "host": ["{{base_url}}"],
+              "path": ["rooms"]
+            }
+          }
+        },
+        {
+          "name": "Update - Capacity and Facilities",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"capacity\": 250,\n    \"facilities\": [\"Proyektor\", \"AC\", \"Sound System Premium\", \"Wifi\", \"Panggung\", \"LED Screen\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/rooms/1",
+              "host": ["{{base_url}}"],
+              "path": ["rooms", "1"]
+            }
+          }
+        },
+        {
+          "name": "Update - Change Description Only",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"description\": \"Lab komputer terbaru dengan spesifikasi tinggi - Gedung B Lantai 2 - Dilengkapi 40 PC core i7\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/rooms/2",
+              "host": ["{{base_url}}"],
+              "path": ["rooms", "2"]
+            }
+          }
+        },
+        {
+          "name": "Update - Set to Maintenance",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"MAINTENANCE\",\n    \"description\": \"Sedang perbaikan AC dan instalasi proyektor baru\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/rooms/3",
+              "host": ["{{base_url}}"],
+              "path": ["rooms", "3"]
+            }
+          }
+        },
+        {
+          "name": "Update - Set to Inactive",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"INACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/rooms/5",
+              "host": ["{{base_url}}"],
+              "path": ["rooms", "5"]
+            }
+          }
+        },
+        {
+          "name": "Update - Back to Active",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"ACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/rooms/5",
+              "host": ["{{base_url}}"],
+              "path": ["rooms", "5"]
+            }
+          }
+        },
+        {
+          "name": "Check Availability - Specific Room",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"date\": \"2026-02-15\",\n    \"start_time\": \"09:00\",\n    \"end_time\": \"12:00\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/rooms/1/check-availability",
+              "host": ["{{base_url}}"],
+              "path": ["rooms", "1", "check-availability"]
+            }
+          }
+        },
+        {
+          "name": "Check Availability - Full Day",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"date\": \"2026-02-20\",\n    \"start_time\": \"08:00\",\n    \"end_time\": \"17:00\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/rooms/1/check-availability",
+              "host": ["{{base_url}}"],
+              "path": ["rooms", "1", "check-availability"]
+            }
+          }
+        },
+        {
+          "name": "Get Schedule - One Week",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rooms/1/schedule?start_date=2026-02-01&end_date=2026-02-07",
+              "host": ["{{base_url}}"],
+              "path": ["rooms", "1", "schedule"],
+              "query": [
+                { "key": "start_date", "value": "2026-02-01" },
+                { "key": "end_date", "value": "2026-02-07" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Schedule - One Month",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rooms/1/schedule?start_date=2026-02-01&end_date=2026-02-28",
+              "host": ["{{base_url}}"],
+              "path": ["rooms", "1", "schedule"],
+              "query": [
+                { "key": "start_date", "value": "2026-02-01" },
+                { "key": "end_date", "value": "2026-02-28" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Upload Image",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "image", "type": "file", "src": [] }]
+            },
+            "url": {
+              "raw": "{{base_url}}/rooms/1/upload-image",
+              "host": ["{{base_url}}"],
+              "path": ["rooms", "1", "upload-image"]
+            }
+          }
+        },
+        {
+          "name": "Delete Image",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"path\": \"rooms/example.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/rooms/1/images",
+              "host": ["{{base_url}}"],
+              "path": ["rooms", "1", "images"]
+            }
+          }
+        },
+        {
+          "name": "Delete Room (Soft Delete)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rooms/6",
+              "host": ["{{base_url}}"],
+              "path": ["rooms", "6"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Room Bookings",
+      "item": [
+        {
+          "name": "List - Get All Bookings",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/room-bookings",
+              "host": ["{{base_url}}"],
+              "path": ["room-bookings"]
+            }
+          }
+        },
+        {
+          "name": "List - My Bookings Only",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/room-bookings?my_bookings=true",
+              "host": ["{{base_url}}"],
+              "path": ["room-bookings"],
+              "query": [{ "key": "my_bookings", "value": "true" }]
+            }
+          }
+        },
+        {
+          "name": "List - My Unit Bookings",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/room-bookings?my_unit_bookings=true",
+              "host": ["{{base_url}}"],
+              "path": ["room-bookings"],
+              "query": [{ "key": "my_unit_bookings", "value": "true" }]
+            }
+          }
+        },
+        {
+          "name": "List - Filter by Status PENDING",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/room-bookings?status=PENDING",
+              "host": ["{{base_url}}"],
+              "path": ["room-bookings"],
+              "query": [{ "key": "status", "value": "PENDING" }]
+            }
+          }
+        },
+        {
+          "name": "List - Filter by Status APPROVED",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/room-bookings?status=APPROVED",
+              "host": ["{{base_url}}"],
+              "path": ["room-bookings"],
+              "query": [{ "key": "status", "value": "APPROVED" }]
+            }
+          }
+        },
+        {
+          "name": "List - Filter by Status REJECTED",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/room-bookings?status=REJECTED",
+              "host": ["{{base_url}}"],
+              "path": ["room-bookings"],
+              "query": [{ "key": "status", "value": "REJECTED" }]
+            }
+          }
+        },
+        {
+          "name": "List - Filter by Date Range",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/room-bookings?date_from=2026-02-01&date_to=2026-02-28",
+              "host": ["{{base_url}}"],
+              "path": ["room-bookings"],
+              "query": [
+                { "key": "date_from", "value": "2026-02-01" },
+                { "key": "date_to", "value": "2026-02-28" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List - Filter by Room",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/room-bookings?room_id=1",
+              "host": ["{{base_url}}"],
+              "path": ["room-bookings"],
+              "query": [{ "key": "room_id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "List - Filter by Document",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/room-bookings?document_id=1",
+              "host": ["{{base_url}}"],
+              "path": ["room-bookings"],
+              "query": [{ "key": "document_id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "List - Multiple Filters",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/room-bookings?status=PENDING&room_id=1&date_from=2026-02-01&date_to=2026-03-31",
+              "host": ["{{base_url}}"],
+              "path": ["room-bookings"],
+              "query": [
+                { "key": "status", "value": "PENDING" },
+                { "key": "room_id", "value": "1" },
+                { "key": "date_from", "value": "2026-02-01" },
+                { "key": "date_to", "value": "2026-03-31" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Statistics - All Bookings",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/room-bookings/statistics",
+              "host": ["{{base_url}}"],
+              "path": ["room-bookings", "statistics"]
+            }
+          }
+        },
+        {
+          "name": "Detail - Get Booking by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/room-bookings/1",
+              "host": ["{{base_url}}"],
+              "path": ["room-bookings", "1"]
+            }
+          }
+        },
+        {
+          "name": "Create - Workshop Booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"document_id\": 1,\n    \"room_id\": 2,\n    \"booking_date\": \"2026-03-15\",\n    \"start_time\": \"09:00\",\n    \"end_time\": \"15:00\",\n    \"purpose\": \"Workshop Mobile Development untuk mahasiswa\",\n    \"special_requirements\": \"Perlu setup proyektor dan pastikan semua PC berfungsi\",\n    \"expected_participants\": 35\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/room-bookings",
+              "host": ["{{base_url}}"],
+              "path": ["room-bookings"]
+            }
+          }
+        },
+        {
+          "name": "Create - Seminar Full Day",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"document_id\": 2,\n    \"room_id\": 1,\n    \"booking_date\": \"2026-03-20\",\n    \"start_time\": \"08:00\",\n    \"end_time\": \"17:00\",\n    \"purpose\": \"Seminar Nasional Teknologi Informasi 2026\",\n    \"special_requirements\": \"Setup panggung, sound system profesional, 200 kursi, backdrop\",\n    \"expected_participants\": 200\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/room-bookings",
+              "host": ["{{base_url}}"],
+              "path": ["room-bookings"]
+            }
+          }
+        },
+        {
+          "name": "Create - Meeting",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"document_id\": 3,\n    \"room_id\": 3,\n    \"booking_date\": \"2026-02-28\",\n    \"start_time\": \"14:00\",\n    \"end_time\": \"16:00\",\n    \"purpose\": \"Rapat Koordinasi HIMA Bulanan\",\n    \"expected_participants\": 15\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/room-bookings",
+              "host": ["{{base_url}}"],
+              "path": ["room-bookings"]
+            }
+          }
+        },
+        {
+          "name": "Create - Half Day Evening",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"document_id\": 1,\n    \"room_id\": 4,\n    \"booking_date\": \"2026-03-10\",\n    \"start_time\": \"13:00\",\n    \"end_time\": \"17:00\",\n    \"purpose\": \"Praktikum Elektronika Dasar\",\n    \"special_requirements\": \"Perlu alat ukur dan komponen elektronika\",\n    \"expected_participants\": 25\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/room-bookings",
+              "host": ["{{base_url}}"],
+              "path": ["room-bookings"]
+            }
+          }
+        },
+        {
+          "name": "Create - Validation Error (Missing Document)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"room_id\": 1,\n    \"booking_date\": \"2026-03-15\",\n    \"start_time\": \"09:00\",\n    \"end_time\": \"12:00\",\n    \"purpose\": \"Test\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/room-bookings",
+              "host": ["{{base_url}}"],
+              "path": ["room-bookings"]
+            }
+          }
+        },
+        {
+          "name": "Create - Capacity Exceeded Error",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"document_id\": 1,\n    \"room_id\": 3,\n    \"booking_date\": \"2026-03-15\",\n    \"start_time\": \"09:00\",\n    \"end_time\": \"12:00\",\n    \"purpose\": \"Test Capacity\",\n    \"expected_participants\": 100\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/room-bookings",
+              "host": ["{{base_url}}"],
+              "path": ["room-bookings"]
+            }
+          }
+        },
+        {
+          "name": "Create - Conflict Error (Already Booked)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"document_id\": 1,\n    \"room_id\": 1,\n    \"booking_date\": \"2026-02-09\",\n    \"start_time\": \"10:00\",\n    \"end_time\": \"13:00\",\n    \"purpose\": \"Test Conflict\",\n    \"expected_participants\": 50\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/room-bookings",
+              "host": ["{{base_url}}"],
+              "path": ["room-bookings"]
+            }
+          }
+        },
+        {
+          "name": "Update - Change Date and Time",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"booking_date\": \"2026-03-16\",\n    \"start_time\": \"10:00\",\n    \"end_time\": \"14:00\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/room-bookings/3",
+              "host": ["{{base_url}}"],
+              "path": ["room-bookings", "3"]
+            }
+          }
+        },
+        {
+          "name": "Update - Change Participants and Requirements",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"expected_participants\": 40,\n    \"special_requirements\": \"Perlu tambahan 5 kursi dan 2 mic wireless\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/room-bookings/3",
+              "host": ["{{base_url}}"],
+              "path": ["room-bookings", "3"]
+            }
+          }
+        },
+        {
+          "name": "Approve - Booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": {
+              "raw": "{{base_url}}/room-bookings/2/approve",
+              "host": ["{{base_url}}"],
+              "path": ["room-bookings", "2", "approve"]
+            }
+          }
+        },
+        {
+          "name": "Reject - Booking with Reason",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"reason\": \"Ruangan sedang dalam renovasi pada tanggal tersebut\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/room-bookings/3/reject",
+              "host": ["{{base_url}}"],
+              "path": ["room-bookings", "3", "reject"]
+            }
+          }
+        },
+        {
+          "name": "Reject - Room Already Booked",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"reason\": \"Maaf, ruangan sudah dibooking untuk acara lain pada waktu yang sama\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/room-bookings/2/reject",
+              "host": ["{{base_url}}"],
+              "path": ["room-bookings", "2", "reject"]
+            }
+          }
+        },
+        {
+          "name": "Cancel - by User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"reason\": \"Acara dibatalkan karena jadwal bentrok dengan kegiatan lain\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/room-bookings/3/cancel",
+              "host": ["{{base_url}}"],
+              "path": ["room-bookings", "3", "cancel"]
+            }
+          }
+        },
+        {
+          "name": "Complete - Booking After Event",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": {
+              "raw": "{{base_url}}/room-bookings/1/complete",
+              "host": ["{{base_url}}"],
+              "path": ["room-bookings", "1", "complete"]
+            }
+          }
+        },
+        {
+          "name": "Delete - Booking (Soft Delete)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/room-bookings/4",
+              "host": ["{{base_url}}"],
+              "path": ["room-bookings", "4"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

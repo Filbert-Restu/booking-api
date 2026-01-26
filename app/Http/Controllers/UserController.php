@@ -11,20 +11,48 @@ class UserController extends Controller
 {
     /**
      * Daftar semua user
+     *
+     * Query params:
+     * - role_id: Filter by role
+     * - unit_id: Filter by unit
+     * - status: Filter by status (ACTIVE/INACTIVE)
+     * - search: Search by name atau email
      */
     public function index(Request $request)
     {
         $user = $request->user();
+        $query = User::with(['role', 'unit']);
 
         // Admin bisa lihat semua, user biasa hanya lihat user di unit yang sama
-        if ($user->unit->category === 'FAKULTAS') {
-            $users = User::with(['role', 'unit'])->get();
-        } else {
-            // User biasa hanya lihat user di unit yang sama
-            $users = User::with(['role', 'unit'])
-                ->where('unit_id', $user->unit_id)
-                ->get();
+        if ($user->unit->category !== 'FAKULTAS') {
+            $query->where('unit_id', $user->unit_id);
         }
+
+        // Filter by role
+        if ($request->has('role_id')) {
+            $query->where('role_id', $request->role_id);
+        }
+
+        // Filter by unit
+        if ($request->has('unit_id')) {
+            $query->where('unit_id', $request->unit_id);
+        }
+
+        // Filter by status
+        if ($request->has('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Search by name or email
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        $users = $query->latest()->get();
 
         return response()->json([
             'success' => true,

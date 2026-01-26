@@ -16,10 +16,6 @@ class Room extends Model
         'name',
         'code',
         'capacity',
-        'location',
-        'building',
-        'floor',
-        'unit_id',
         'facilities',
         'status',
         'description',
@@ -31,14 +27,6 @@ class Room extends Model
         'images' => 'array',
         'capacity' => 'integer',
     ];
-
-    /**
-     * Unit yang mengelola ruangan ini
-     */
-    public function unit(): BelongsTo
-    {
-        return $this->belongsTo(Unit::class);
-    }
 
     /**
      * Semua booking untuk ruangan ini

@@ -24,12 +24,7 @@ class RoomController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Room::with(['unit']);
-
-        // Filter by unit
-        if ($request->has('unit_id')) {
-            $query->where('unit_id', $request->unit_id);
-        }
+        $query = Room::query();
 
         // Filter by status
         if ($request->has('status')) {
@@ -79,7 +74,7 @@ class RoomController extends Controller
      */
     public function show(Request $request, $id)
     {
-        $room = Room::with(['unit'])->findOrFail($id);
+        $room = Room::findOrFail($id);
 
         // Load upcoming bookings (7 hari ke depan)
         $startDate = Carbon::today();
@@ -111,10 +106,6 @@ class RoomController extends Controller
             'name' => 'required|string|max:255',
             'code' => 'required|string|max:50|unique:rooms,code',
             'capacity' => 'nullable|integer|min:1',
-            'location' => 'nullable|string|max:255',
-            'building' => 'nullable|string|max:255',
-            'floor' => 'nullable|string|max:50',
-            'unit_id' => 'required|exists:units,id',
             'facilities' => 'nullable|array',
             'status' => 'nullable|in:ACTIVE,MAINTENANCE,INACTIVE',
             'description' => 'nullable|string',
@@ -154,10 +145,6 @@ class RoomController extends Controller
             'building' => 'nullable|string|max:255',
             'floor' => 'nullable|string|max:50',
             'unit_id' => 'sometimes|required|exists:units,id',
-            'facilities' => 'nullable|array',
-            'status' => 'nullable|in:ACTIVE,MAINTENANCE,INACTIVE',
-            'description' => 'nullable|string',
-            'images' => 'nullable|array',
             'images.*' => 'nullable|string',
         ]);
 

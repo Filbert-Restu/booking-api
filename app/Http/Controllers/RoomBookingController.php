@@ -247,11 +247,10 @@ class RoomBookingController extends Controller
         $booking = RoomBooking::findOrFail($id);
         $user = $request->user();
 
-        // Cek authorization: Harus admin atau dari unit pengelola ruangan
+        // Cek authorization: Hanya admin yang bisa approve
         $isAdmin = $user->role->slug === 'admin';
-        $isRoomManager = $booking->room->unit_id === $user->unit_id;
 
-        if (!$isAdmin && !$isRoomManager) {
+        if (!$isAdmin) {
             return response()->json([
                 'success' => false,
                 'message' => 'Anda tidak memiliki akses untuk menyetujui booking ini',
@@ -302,11 +301,10 @@ class RoomBookingController extends Controller
         $booking = RoomBooking::findOrFail($id);
         $user = $request->user();
 
-        // Cek authorization
+        // Cek authorization: Hanya admin yang bisa reject
         $isAdmin = $user->role->slug === 'admin';
-        $isRoomManager = $booking->room->unit_id === $user->unit_id;
 
-        if (!$isAdmin && !$isRoomManager) {
+        if (!$isAdmin) {
             return response()->json([
                 'success' => false,
                 'message' => 'Anda tidak memiliki akses untuk menolak booking ini',
@@ -474,9 +472,9 @@ class RoomBookingController extends Controller
         // Jika user dari unit pengelola ruangan
         if ($user->unit_id) {
             $stats['unit_rooms_count'] = Room::where('unit_id', $user->unit_id)->count();
-            $stats['unit_pending_approvals'] = RoomBooking::whereHas('room', function ($q) use ($user) {
+            $stats['my_unit_bookings'] = RoomBooking::whereHas('bookedBy', function ($q) use ($user) {
                 $q->where('unit_id', $user->unit_id);
-            })->pending()->count();
+            })->count();
         }
 
         return response()->json([
