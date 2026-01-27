@@ -411,7 +411,7 @@ class DocumentController extends Controller
     {
         $validated = $request->validate([
             'title' => 'sometimes|string|max:255',
-            'content' => 'nullable|string',
+            'content' => 'nullable|array',  // Changed from string to array
             'attachment_path' => 'nullable|string',
             'meta_data' => 'nullable|array',
         ]);
@@ -427,12 +427,28 @@ class DocumentController extends Controller
             ], 403);
         }
 
+        // Validasi: Dokumen harus dalam status DRAFT atau REVISED
+        if (!in_array($document->status, ['DRAFT', 'REVISED'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Dokumen tidak dapat diupdate karena sudah disubmit'
+            ], 400);
+        }
+
         $document->update($validated);
+
+        // Log update dokumen
+        DocumentLog::create([
+            'document_id' => $document->id,
+            'user_id' => $user->id,
+            'action' => 'UPDATED',
+            'note' => 'Dokumen diupdate',
+        ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Dokumen berhasil diupdate',
-            'data' => $document
+            'data' => $document->fresh()
         ]);
     }
 }
