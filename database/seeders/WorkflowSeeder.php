@@ -16,21 +16,21 @@ class WorkflowSeeder extends Seeder
     {
         // 1. ROLES
         $roles = [
-            ['name' => 'Admin', 'slug' => 'admin', 'description' => 'Administrator Sistem'],
-            ['name' => 'Wakil Dekan 1', 'slug' => 'wadek1', 'description' => 'Wakil Dekan Bidang Akademik dan Kemahasiswaan'],
-            ['name' => 'Kemahasiswaan Fakultas', 'slug' => 'kemahasiswaan-fakultas', 'description' => 'Kemahasiswaan Fakultas'],
-            ['name' => 'Sumber Daya Fakultas', 'slug' => 'sumber-daya-fakultas', 'description' => 'Sumber Daya Fakultas'],
-            ['name' => 'Ketua Prodi', 'slug' => 'ketua-prodi', 'description' => 'Ketua Program Studi'],
-            ['name' => 'Pembimbing Ormawa', 'slug' => 'pembimbing-ormawa', 'description' => 'Pembimbing Organisasi Mahasiswa'],
-            ['name' => 'Ketua Senat', 'slug' => 'ketua-senat', 'description' => 'Ketua Senat Fakultas'],
-            ['name' => 'Ketua BEM', 'slug' => 'ketua-bem', 'description' => 'Ketua Badan Eksekutif Mahasiswa'],
-            ['name' => 'Ketua HIMA', 'slug' => 'ketua-hima', 'description' => 'Ketua Himpunan Mahasiswa'],
-            ['name' => 'Ketua UKM', 'slug' => 'ketua-ukm', 'description' => 'Ketua Unit Kegiatan Mahasiswa'],
-            ['name' => 'Sekretaris Senat', 'slug' => 'sekretaris-senat', 'description' => 'Sekretaris Senat'],
-            ['name' => 'Sekretaris BEM', 'slug' => 'sekretaris-bem', 'description' => 'Sekretaris Badan Eksekutif Mahasiswa'],
-            ['name' => 'Sekretaris HIMA', 'slug' => 'sekretaris-hima', 'description' => 'Sekretaris Himpunan Mahasiswa'],
-            ['name' => 'Sekretaris UKM', 'slug' => 'sekretaris-ukm', 'description' => 'Sekretaris Unit Kegiatan Mahasiswa'],
-            ['name' => 'Mahasiswa', 'slug' => 'mahasiswa', 'description' => 'Mahasiswa biasa'],
+            ['name' => 'Admin', 'slug' => 'admin'],
+            ['name' => 'Wakil Dekan 1', 'slug' => 'wadek1'],
+            ['name' => 'Kemahasiswaan Fakultas', 'slug' => 'kemahasiswaan-fakultas'],
+            ['name' => 'Sumber Daya Fakultas', 'slug' => 'sumber-daya-fakultas'],
+            ['name' => 'Ketua Prodi', 'slug' => 'ketua-prodi'],
+            ['name' => 'Pembimbing Ormawa', 'slug' => 'pembimbing-ormawa'],
+            ['name' => 'Ketua Senat', 'slug' => 'ketua-senat'],
+            ['name' => 'Ketua BEM', 'slug' => 'ketua-bem'],
+            ['name' => 'Ketua HIMA', 'slug' => 'ketua-hima'],
+            ['name' => 'Ketua UKM', 'slug' => 'ketua-ukm'],
+            ['name' => 'Sekretaris Senat', 'slug' => 'sekretaris-senat'],
+            ['name' => 'Sekretaris BEM', 'slug' => 'sekretaris-bem'],
+            ['name' => 'Sekretaris HIMA', 'slug' => 'sekretaris-hima'],
+            ['name' => 'Sekretaris UKM', 'slug' => 'sekretaris-ukm'],
+            ['name' => 'Mahasiswa', 'slug' => 'mahasiswa'],
         ];
 
         foreach ($roles as $role) {
@@ -38,16 +38,16 @@ class WorkflowSeeder extends Seeder
         }
 
         // 2. UNITS
-        $fakultas = Unit::create(['name' => 'Fakultas Teknik', 'code' => 'FT', 'category' => 'FAKULTAS', 'parent_id' => null, 'description' => 'Fakultas Teknik Universitas']);
-        $senat = Unit::create(['name' => 'Senat Fakultas Teknik', 'code' => 'SENAT-FT', 'category' => 'SENAT', 'parent_id' => $fakultas->id, 'description' => 'Badan Senat Fakultas']);
-        $prodiIF = Unit::create(['name' => 'Program Studi Informatika', 'code' => 'PRODI-IF', 'category' => 'PRODI', 'parent_id' => $fakultas->id, 'description' => 'Program Studi Teknik Informatika']);
-        $prodiTE = Unit::create(['name' => 'Program Studi Teknik Elektro', 'code' => 'PRODI-TE', 'category' => 'PRODI', 'parent_id' => $fakultas->id, 'description' => 'Program Studi Teknik Elektro']);
-        $prodiTS = Unit::create(['name' => 'Program Studi Teknik Sipil', 'code' => 'PRODI-TS', 'category' => 'PRODI', 'parent_id' => $fakultas->id, 'description' => 'Program Studi Teknik Sipil']);
-        $bemFT = Unit::create(['name' => 'BEM Fakultas Teknik', 'code' => 'BEM-FT', 'category' => 'BEM', 'parent_id' => $senat->id, 'description' => 'Badan Eksekutif Mahasiswa Fakultas Teknik']);
-        $himaIF = Unit::create(['name' => 'HIMA Informatika', 'code' => 'HIMA-IF', 'category' => 'HIMA', 'parent_id' => $prodiIF->id, 'description' => 'Himpunan Mahasiswa Informatika']);
-        $himaTE = Unit::create(['name' => 'HIMA Teknik Elektro', 'code' => 'HIMA-TE', 'category' => 'HIMA', 'parent_id' => $prodiTE->id, 'description' => 'Himpunan Mahasiswa Teknik Elektro']);
-        $himaTS = Unit::create(['name' => 'HIMA Teknik Sipil', 'code' => 'HIMA-TS', 'category' => 'HIMA', 'parent_id' => $prodiTS->id, 'description' => 'Himpunan Mahasiswa Teknik Sipil']);
-        $ukmOlahraga = Unit::create(['name' => 'UKM Olahraga', 'code' => 'UKM-OR', 'category' => 'UKM', 'parent_id' => $fakultas->id, 'description' => 'Unit Kegiatan Mahasiswa Olahraga']);
+        $fakultas = Unit::create(['name' => 'Fakultas Teknik', 'code' => 'FT', 'category' => 'FAKULTAS', 'parent_id' => null]);
+        $senat = Unit::create(['name' => 'Senat Fakultas Teknik', 'code' => 'SENAT-FT', 'category' => 'SENAT', 'parent_id' => $fakultas->id]);
+        $prodiIF = Unit::create(['name' => 'Program Studi Informatika', 'code' => 'PRODI-IF', 'category' => 'PRODI', 'parent_id' => $fakultas->id]);
+        $prodiTE = Unit::create(['name' => 'Program Studi Teknik Elektro', 'code' => 'PRODI-TE', 'category' => 'PRODI', 'parent_id' => $fakultas->id]);
+        $prodiTS = Unit::create(['name' => 'Program Studi Teknik Sipil', 'code' => 'PRODI-TS', 'category' => 'PRODI', 'parent_id' => $fakultas->id]);
+        $bemFT = Unit::create(['name' => 'BEM Fakultas Teknik', 'code' => 'BEM-FT', 'category' => 'BEM', 'parent_id' => $senat->id]);
+        $himaIF = Unit::create(['name' => 'HIMA Informatika', 'code' => 'HIMA-IF', 'category' => 'HIMA', 'parent_id' => $prodiIF->id]);
+        $himaTE = Unit::create(['name' => 'HIMA Teknik Elektro', 'code' => 'HIMA-TE', 'category' => 'HIMA', 'parent_id' => $prodiTE->id]);
+        $himaTS = Unit::create(['name' => 'HIMA Teknik Sipil', 'code' => 'HIMA-TS', 'category' => 'HIMA', 'parent_id' => $prodiTS->id]);
+        $ukmOlahraga = Unit::create(['name' => 'UKM Olahraga', 'code' => 'UKM-OR', 'category' => 'UKM', 'parent_id' => $fakultas->id]);
 
         // 3. USERS
         $roleadmin = Role::where('slug', 'admin')->first();

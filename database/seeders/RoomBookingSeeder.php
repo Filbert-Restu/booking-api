@@ -25,7 +25,7 @@ class RoomBookingSeeder extends Seeder
             'code' => 'AU-01',
             'capacity' => 200,
             'facilities' => ['Proyektor', 'Sound System', 'AC', 'Wifi', 'Panggung'],
-            'status' => 'ACTIVE',
+            'status' => 'MAINTENANCE',
             'description' => 'Aula utama untuk acara besar fakultas - Gedung A Lantai 1',
         ]);
 

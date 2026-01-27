@@ -13,7 +13,9 @@ use App\Http\Controllers\RoomBookingController;
 
 // Get authenticated user
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
+    $user = $request->user();
+    $user->load(['role', 'unit']);
+    return $user;
 });
 
 // Routes yang membutuhkan autentikasi
@@ -81,11 +83,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/', [RoomController::class, 'store']);                             // Buat room baru (admin/unit manager)
         Route::put('/{id}', [RoomController::class, 'update']);                         // Update room
         Route::delete('/{id}', [RoomController::class, 'destroy']);                     // Hapus room (soft delete)
-        
+
         // Room Availability & Schedule
         Route::post('/{id}/check-availability', [RoomController::class, 'checkAvailability']); // Cek ketersediaan
         Route::get('/{id}/schedule', [RoomController::class, 'schedule']);              // Jadwal booking
-        
+
         // Room Images
         Route::post('/{id}/upload-image', [RoomController::class, 'uploadImage']);      // Upload foto
         Route::delete('/{id}/images', [RoomController::class, 'deleteImage']);          // Hapus foto
@@ -99,7 +101,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/', [RoomBookingController::class, 'store']);                      // Buat booking baru (wajib ada document)
         Route::put('/{id}', [RoomBookingController::class, 'update']);                  // Update booking (hanya PENDING)
         Route::delete('/{id}', [RoomBookingController::class, 'destroy']);              // Hapus booking (soft delete)
-        
+
         // Booking Actions
         Route::post('/{id}/approve', [RoomBookingController::class, 'approve']);        // Approve booking (room manager/admin)
         Route::post('/{id}/reject', [RoomBookingController::class, 'reject']);          // Reject booking (room manager/admin)

@@ -58,7 +58,9 @@ class UnitController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'category' => 'required|in:FAKULTAS,JURUSAN,PRODI,HIMA',
+            'code' => 'required|string|max:255|unique:units,code',
+            'description' => 'nullable|string',
+            'category' => 'required|in:FAKULTAS,PRODI,HIMA',
             'parent_id' => 'nullable|exists:units,id',
         ]);
 

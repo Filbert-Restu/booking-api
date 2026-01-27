@@ -26,12 +26,9 @@ class RoomController extends Controller
     {
         $query = Room::query();
 
-        // Filter by status
+        // Filter by status (optional, jika tidak ada tampilkan semua)
         if ($request->has('status')) {
             $query->where('status', $request->status);
-        } else {
-            // Default hanya tampilkan yang ACTIVE
-            $query->where('status', 'ACTIVE');
         }
 
         // Filter by minimal capacity
@@ -126,7 +123,7 @@ class RoomController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Ruangan berhasil dibuat',
-            'data' => $room->load('unit'),
+            'data' => $room,
         ], 201);
     }
 
@@ -144,7 +141,6 @@ class RoomController extends Controller
             'location' => 'nullable|string|max:255',
             'building' => 'nullable|string|max:255',
             'floor' => 'nullable|string|max:50',
-            'unit_id' => 'sometimes|required|exists:units,id',
             'images.*' => 'nullable|string',
         ]);
 
@@ -161,7 +157,7 @@ class RoomController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Ruangan berhasil diupdate',
-            'data' => $room->load('unit'),
+            'data' => $room,
         ]);
     }
 

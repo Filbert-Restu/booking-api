@@ -12,6 +12,7 @@ class Document extends Model
     protected $guarded = ['id'];
 
     protected $casts = [
+        'content' => 'array',
         'meta_data' => 'array',
         'completed_at' => 'datetime',
     ];

@@ -18,7 +18,7 @@ return new class extends Migration
 
             // Isi surat bisa text biasa atau JSON jika pakai editor blocks (e.g. Editor.js)
             // Saya sarankan TEXT/LONGTEXT agar fleksibel
-            $table->longText('content')->nullable();
+            $table->json('content')->nullable();
 
             // Path file lampiran (PDF/DOCX)
             $table->string('attachment_path')->nullable();

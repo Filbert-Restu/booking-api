@@ -23,6 +23,11 @@ class DocumentController extends Controller
      * - Dokumen yang sedang dipegang user (perlu action)
      * - Dokumen yang sudah diproses user (history)
      * - Admin bisa melihat semua dokumen
+     *
+     * Query params:
+     * - status: Filter berdasarkan status (DRAFT/IN_PROGRESS/APPROVED/REJECTED/REVISED)
+     * - workflow_id: Filter berdasarkan workflow
+     * - unit_id: Filter berdasarkan unit (khusus admin)
      */
     public function index(Request $request)
     {
@@ -31,9 +36,24 @@ class DocumentController extends Controller
 
         // Jika Admin, return semua dokumen
         if ($isAdmin) {
-            $allDocuments = Document::with(['workflow', 'currentHolder', 'unit', 'logs'])
-                ->latest()
-                ->get();
+            $query = Document::with(['workflow', 'currentHolder', 'unit', 'logs']);
+
+            // Filter by status
+            if ($request->has('status')) {
+                $query->where('status', $request->status);
+            }
+
+            // Filter by workflow
+            if ($request->has('workflow_id')) {
+                $query->where('workflow_id', $request->workflow_id);
+            }
+
+            // Filter by unit
+            if ($request->has('unit_id')) {
+                $query->where('unit_id', $request->unit_id);
+            }
+
+            $allDocuments = $query->latest()->get();
 
             return response()->json([
                 'success' => true,
@@ -45,17 +65,32 @@ class DocumentController extends Controller
 
         // Untuk user biasa
         // Dokumen yang dibuat user
-        $myDocuments = Document::with(['workflow', 'currentHolder', 'unit'])
-            ->where('creator_id', $user->id)
-            ->latest()
-            ->get();
+        $myDocumentsQuery = Document::with(['workflow', 'currentHolder', 'unit'])
+            ->where('creator_id', $user->id);
+
+        // Filter by status untuk my_documents
+        if ($request->has('status')) {
+            $myDocumentsQuery->where('status', $request->status);
+        }
+
+        // Filter by workflow
+        if ($request->has('workflow_id')) {
+            $myDocumentsQuery->where('workflow_id', $request->workflow_id);
+        }
+
+        $myDocuments = $myDocumentsQuery->latest()->get();
 
         // Dokumen yang sedang menunggu action dari user ini
-        $pendingDocuments = Document::with(['workflow', 'unit'])
+        $pendingDocumentsQuery = Document::with(['workflow', 'unit'])
             ->where('current_holder_id', $user->id)
-            ->where('status', 'IN_PROGRESS')
-            ->latest()
-            ->get();
+            ->where('status', 'IN_PROGRESS');
+
+        // Filter by workflow untuk pending
+        if ($request->has('workflow_id')) {
+            $pendingDocumentsQuery->where('workflow_id', $request->workflow_id);
+        }
+
+        $pendingDocuments = $pendingDocumentsQuery->latest()->get();
 
         // Dokumen yang sudah diproses oleh user ini (approved/rejected)
         // Ambil document_id dari logs dimana user ini melakukan action
@@ -64,11 +99,21 @@ class DocumentController extends Controller
             ->pluck('document_id')
             ->unique();
 
-        $processedDocuments = Document::with(['workflow', 'currentHolder', 'unit'])
+        $processedDocumentsQuery = Document::with(['workflow', 'currentHolder', 'unit'])
             ->whereIn('id', $processedDocumentIds)
-            ->where('creator_id', '!=', $user->id) // Hindari duplikasi dengan my_documents
-            ->latest()
-            ->get();
+            ->where('creator_id', '!=', $user->id); // Hindari duplikasi dengan my_documents
+
+        // Filter by status untuk processed
+        if ($request->has('status')) {
+            $processedDocumentsQuery->where('status', $request->status);
+        }
+
+        // Filter by workflow
+        if ($request->has('workflow_id')) {
+            $processedDocumentsQuery->where('workflow_id', $request->workflow_id);
+        }
+
+        $processedDocuments = $processedDocumentsQuery->latest()->get();
 
         return response()->json([
             'success' => true,
@@ -136,7 +181,7 @@ class DocumentController extends Controller
         $validated = $request->validate([
             'workflow_id' => 'required|exists:workflows,id',
             'title' => 'required|string|max:255',
-            'content' => 'nullable|string',
+            'content' => 'nullable|array',
             'attachment_path' => 'nullable|string',
             'meta_data' => 'nullable|array',
         ]);
