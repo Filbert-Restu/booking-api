@@ -18,6 +18,24 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $user;
 });
 
+// DEV ONLY: Get all users for development login menu
+// TODO: Remove in production
+Route::get('/dev/users', function () {
+    return \App\Models\User::with(['role', 'unit'])
+        ->select('id', 'name', 'email', 'role_id', 'unit_id')
+        ->orderBy('role_id')
+        ->get()
+        ->map(function ($user) {
+            return [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role?->name ?? 'Unknown',
+                'unit' => $user->unit?->name ?? 'Unknown',
+            ];
+        });
+});
+
 // Routes yang membutuhkan autentikasi
 Route::middleware('auth:sanctum')->group(function () {
 

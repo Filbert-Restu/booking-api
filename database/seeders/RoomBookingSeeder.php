@@ -16,16 +16,12 @@ class RoomBookingSeeder extends Seeder
     public function run(): void
     {
         // 1. ROOMS - Buat beberapa ruangan
-        $fakultas = Unit::where('code', 'FT')->first();
-        $prodiIF = Unit::where('code', 'PRODI-IF')->first();
-        $prodiTE = Unit::where('code', 'PRODI-TE')->first();
-
         $aulaUtama = Room::create([
-            'name' => 'Aula Utama',
+            'name' => 'Aula Utama FSM',
             'code' => 'AU-01',
             'capacity' => 200,
             'facilities' => ['Proyektor', 'Sound System', 'AC', 'Wifi', 'Panggung'],
-            'status' => 'MAINTENANCE',
+            'status' => 'ACTIVE',
             'description' => 'Aula utama untuk acara besar fakultas - Gedung A Lantai 1',
         ]);
 
@@ -66,18 +62,18 @@ class RoomBookingSeeder extends Seeder
         ]);
 
         // 2. DOCUMENTS - Buat beberapa dokumen pengajuan
-        $workflow = Workflow::first();
-        $himaIF = Unit::where('code', 'HIMA-IF')->first();
-        $sekretarisHima = User::where('email', 'sekretaris.hima.if@student.ac.id')->first();
-        $ketuaHima = User::where('email', 'ketua.hima.if@student.ac.id')->first();
+        $workflow = Workflow::where('applies_to_category', 'HMD')->first();
+        $hmif = Unit::where('code', 'HMIF')->first();
+        $sekretarisHmif = User::where('email', 'sekretaris.hmif@student.undip.ac.id')->first();
+        $ketuaHmif = User::where('email', 'ketua.hmif@student.undip.ac.id')->first();
 
         $doc1 = Document::create([
             'title' => 'Pengajuan Workshop Web Development',
             'content' => 'Permohonan peminjaman ruangan untuk workshop web development',
             'workflow_id' => $workflow->id,
-            'unit_id' => $himaIF->id,
-            'creator_id' => $sekretarisHima->id,
-            'current_holder_id' => $ketuaHima->id,
+            'unit_id' => $hmif->id,
+            'creator_id' => $sekretarisHmif->id,
+            'current_holder_id' => $ketuaHmif->id,
             'current_step_order' => 1,
             'status' => 'IN_PROGRESS',
             'meta_data' => [
@@ -90,9 +86,9 @@ class RoomBookingSeeder extends Seeder
             'title' => 'Pengajuan Seminar Teknologi',
             'content' => 'Permohonan peminjaman aula untuk seminar teknologi',
             'workflow_id' => $workflow->id,
-            'unit_id' => $himaIF->id,
-            'creator_id' => $sekretarisHima->id,
-            'current_holder_id' => $ketuaHima->id,
+            'unit_id' => $hmif->id,
+            'creator_id' => $sekretarisHmif->id,
+            'current_holder_id' => $ketuaHmif->id,
             'current_step_order' => 1,
             'status' => 'IN_PROGRESS',
             'meta_data' => [
@@ -102,12 +98,12 @@ class RoomBookingSeeder extends Seeder
         ]);
 
         $doc3 = Document::create([
-            'title' => 'Rapat Koordinasi HIMA',
-            'content' => 'Peminjaman ruang rapat untuk koordinasi pengurus HIMA',
+            'title' => 'Rapat Koordinasi HMIF',
+            'content' => 'Peminjaman ruang rapat untuk koordinasi pengurus HMIF',
             'workflow_id' => $workflow->id,
-            'unit_id' => $himaIF->id,
-            'creator_id' => $sekretarisHima->id,
-            'current_holder_id' => $sekretarisHima->id,
+            'unit_id' => $hmif->id,
+            'creator_id' => $sekretarisHmif->id,
+            'current_holder_id' => $sekretarisHmif->id,
             'current_step_order' => 1,
             'status' => 'DRAFT',
         ]);
@@ -118,15 +114,15 @@ class RoomBookingSeeder extends Seeder
         $booking1 = RoomBooking::create([
             'document_id' => $doc1->id,
             'room_id' => $labKomputer1->id,
-            'booked_by' => $sekretarisHima->id,
+            'booked_by' => $sekretarisHmif->id,
             'booking_date' => Carbon::now()->addDays(7)->format('Y-m-d'),
             'start_time' => '09:00',
             'end_time' => '15:00',
-            'purpose' => 'Workshop Web Development untuk mahasiswa HIMA Informatika',
+            'purpose' => 'Workshop Web Development untuk mahasiswa HMIF',
             'special_requirements' => 'Perlu setup proyektor dan pastikan semua PC berfungsi',
             'expected_participants' => 35,
             'status' => 'APPROVED',
-            'approved_by' => User::where('email', 'kaprodi.if@ft.ac.id')->first()->id,
+            'approved_by' => User::where('email', 'kadept.if@fsm.undip.ac.id')->first()->id,
             'approved_at' => now(),
         ]);
 
@@ -134,7 +130,7 @@ class RoomBookingSeeder extends Seeder
         $booking2 = RoomBooking::create([
             'document_id' => $doc2->id,
             'room_id' => $aulaUtama->id,
-            'booked_by' => $sekretarisHima->id,
+            'booked_by' => $sekretarisHmif->id,
             'booking_date' => Carbon::now()->addDays(14)->format('Y-m-d'),
             'start_time' => '08:00',
             'end_time' => '17:00',
@@ -148,11 +144,11 @@ class RoomBookingSeeder extends Seeder
         $booking3 = RoomBooking::create([
             'document_id' => $doc3->id,
             'room_id' => $ruangRapat->id,
-            'booked_by' => $sekretarisHima->id,
+            'booked_by' => $sekretarisHmif->id,
             'booking_date' => Carbon::now()->addDays(3)->format('Y-m-d'),
             'start_time' => '13:00',
             'end_time' => '15:00',
-            'purpose' => 'Rapat koordinasi pengurus HIMA bulanan',
+            'purpose' => 'Rapat koordinasi pengurus HMIF bulanan',
             'expected_participants' => 15,
             'status' => 'PENDING',
         ]);
@@ -161,14 +157,14 @@ class RoomBookingSeeder extends Seeder
         $booking4 = RoomBooking::create([
             'document_id' => $doc1->id,
             'room_id' => $ruangRapat->id,
-            'booked_by' => $sekretarisHima->id,
+            'booked_by' => $sekretarisHmif->id,
             'booking_date' => Carbon::now()->subDays(5)->format('Y-m-d'),
             'start_time' => '10:00',
             'end_time' => '12:00',
             'purpose' => 'Rapat persiapan workshop',
             'expected_participants' => 10,
             'status' => 'COMPLETED',
-            'approved_by' => User::where('email', 'kaprodi.if@ft.ac.id')->first()->id,
+            'approved_by' => User::where('email', 'kadept.if@fsm.undip.ac.id')->first()->id,
             'approved_at' => Carbon::now()->subDays(7),
         ]);
 
