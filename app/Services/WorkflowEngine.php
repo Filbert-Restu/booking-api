@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Document;
 use App\Models\DocumentLog;
+use App\Models\Sign;
 use App\Models\User;
 use App\Models\WorkflowStep;
 use App\Models\Unit;
@@ -14,9 +15,9 @@ class WorkflowEngine
     /**
      * Logika Utama: Approve & Oper ke orang berikutnya
      */
-    public function approveDocument(Document $document, User $actor, $note = null)
+    public function approveDocument(Document $document, User $actor, $note = null, $signaturePath = null)
     {
-        return DB::transaction(function () use ($document, $actor, $note) {
+        return DB::transaction(function () use ($document, $actor, $note, $signaturePath) {
             // 1. Catat Log "APPROVED"
             DocumentLog::create([
                 'document_id' => $document->id,
@@ -26,33 +27,46 @@ class WorkflowEngine
                 'step_snapshot' => $document->current_step_order
             ]);
 
-            // 2. Cari Langkah Selanjutnya
+            // 2. Simpan tanda tangan jika ada
+            if ($signaturePath) {
+                Sign::create([
+                    'user_id' => $actor->id,
+                    'signature' => $signaturePath,
+                    'signed_at' => now(),
+                ]);
+            }
+
+            // 3. Cari Langkah Selanjutnya
             $nextStepOrder = $document->current_step_order + 1;
             $nextStepConfig = WorkflowStep::where('workflow_id', $document->workflow_id)
                                           ->where('step_order', $nextStepOrder)
                                           ->first();
 
-            // 3. Jika TIDAK ADA langkah selanjutnya -> SELESAI
+            // 4. Jika TIDAK ADA langkah selanjutnya -> SELESAI
             if (!$nextStepConfig) {
-                $document->update(['status' => 'PUBLISHED']);
-                return 'Dokumen Selesai/Terbit';
+                $document->update([
+                    'status' => 'APPROVED',
+                    'completed_at' => now(),
+                    'current_holder_id' => null,
+                ]);
+                return 'Dokumen telah disetujui sepenuhnya dan proses selesai.';
             }
 
-            // 4. Jika ADA, Cari SIAPA Orangnya (Logic Swimlane/Cross-Unit)
+            // 5. Jika ADA, Cari SIAPA Orangnya (Logic Swimlane/Cross-Unit)
             $nextUser = $this->findApprover($document, $nextStepConfig);
 
             if (!$nextUser) {
                 throw new \Exception("User untuk langkah selanjutnya tidak ditemukan. Cek konfigurasi Unit/Role.");
             }
 
-            // 5. Update Dokumen (Oper Bola)
+            // 6. Update Dokumen (Oper Bola)
             $document->update([
                 'current_holder_id' => $nextUser->id,
                 'current_step_order' => $nextStepOrder,
                 'status' => 'IN_PROGRESS'
             ]);
 
-            return "Dokumen diteruskan ke: " . $nextUser->name . " (" . $nextUser->jabatan_text . ")";
+            return "Dokumen diteruskan ke: " . $nextUser->name . " (" . $nextUser->role->name . ")";
         });
     }
 

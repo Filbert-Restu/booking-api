@@ -20,8 +20,14 @@ return new class extends Migration
             // Saya sarankan TEXT/LONGTEXT agar fleksibel
             $table->json('content')->nullable();
 
-            // Path file lampiran (PDF/DOCX)
-            $table->string('attachment_path')->nullable();
+            // 1. Executive Summary
+            $table->string('file_executive_summary')->nullable();
+
+            // 2. Lembar Pengesahan
+            $table->string('file_approval_sheet')->nullable();
+
+            // 3. Proposal
+            $table->string('file_proposal')->nullable();
 
             // --- B. CONTEXT (ASAL USUL) ---
             // PENTING: Surat ini milik Unit mana? (HIMA? BEM? UKM?)

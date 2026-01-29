@@ -10,6 +10,7 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\RoomController;
 use App\Http\Controllers\RoomBookingController;
+use App\Http\Controllers\SignController;
 
 // Get authenticated user
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
@@ -38,6 +39,15 @@ Route::get('/dev/users', function () {
 
 // Routes yang membutuhkan autentikasi
 Route::middleware('auth:sanctum')->group(function () {
+
+    // Signature (Tanda Tangan) Routes
+    Route::prefix('signs')->group(function () {
+        Route::get('/', [SignController::class, 'index']);      // Lihat tanda tangan sendiri
+        Route::get('/file', [SignController::class, 'file']);   // Ambil file tanda tangan (authed user)
+        Route::post('/', [SignController::class, 'store']);     // Upload tanda tangan
+        Route::put('/{id}', [SignController::class, 'update']); // Update tanda tangan
+        Route::delete('/{id}', [SignController::class, 'destroy']); // Hapus tanda tangan
+    });
 
     // Workflow Routes
     Route::prefix('workflows')->group(function () {

@@ -15,6 +15,7 @@ class Document extends Model
         'content' => 'array',
         'meta_data' => 'array',
         'completed_at' => 'datetime',
+        'current_step_order' => 'integer',
     ];
 
     /**
@@ -104,7 +105,7 @@ class Document extends Model
      */
     public function scopeCompleted($query)
     {
-        return $query->whereIn('status', ['PUBLISHED', 'REJECTED']);
+        return $query->whereIn('status', ['APPROVED', 'REJECTED']);
     }
 }
 

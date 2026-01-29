@@ -7,6 +7,7 @@ use App\Models\DocumentLog;
 use App\Services\WorkflowEngine;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class DocumentController extends Controller
 {
@@ -173,45 +174,84 @@ class DocumentController extends Controller
         ]);
     }
 
-    /**
+/**
      * Buat dokumen baru (DRAFT)
+     * DISESUAIKAN: Menangani 3 jenis lampiran terpisah
      */
     public function store(Request $request)
     {
         $validated = $request->validate([
             'workflow_id' => 'required|exists:workflows,id',
-            'title' => 'required|string|max:255',
-            'content' => 'nullable|array',
-            'attachment_path' => 'nullable|string',
-            'meta_data' => 'nullable|array',
+            'title'       => 'required|string|max:255',
+            'content'     => 'nullable|array',
+            'meta_data'   => 'nullable|array',
+
+            // --- VALIDASI 3 FILE BERBEDA ---
+            // Executive Summary (Boleh PDF/Word, max 10MB)
+            'executive_summary' => 'nullable|file|mimes:pdf,doc,docx|max:10240',
+
+            // Lembar Pengesahan (Biasanya wajib PDF/Image scan, max 5MB)
+            'approval_sheet'    => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+
+            // Proposal (Wajib PDF agar tidak berantakan saat preview, max 20MB)
+            'proposal'          => 'nullable|file|mimes:pdf|max:20480',
         ]);
 
         $user = $request->user();
 
+        // 1. Handle Executive Summary
+        $pathExecutive = null;
+        if ($request->hasFile('executive_summary')) {
+            $pathExecutive = Storage::url(
+                $request->file('executive_summary')->store('documents/executive_summaries', 'public')
+            );
+        }
+
+        // 2. Handle Approval Sheet
+        $pathApproval = null;
+        if ($request->hasFile('approval_sheet')) {
+            $pathApproval = Storage::url(
+                $request->file('approval_sheet')->store('documents/approval_sheets', 'public')
+            );
+        }
+
+        // 3. Handle Proposal
+        $pathProposal = null;
+        if ($request->hasFile('proposal')) {
+            $pathProposal = Storage::url(
+                $request->file('proposal')->store('documents/proposals', 'public')
+            );
+        }
+
         $document = Document::create([
             'workflow_id' => $validated['workflow_id'],
-            'title' => $validated['title'],
-            'content' => $validated['content'] ?? null,
-            'attachment_path' => $validated['attachment_path'] ?? null,
-            'meta_data' => $validated['meta_data'] ?? null,
-            'unit_id' => $user->unit_id,
-            'creator_id' => $user->id,
-            'status' => 'DRAFT',
-            'current_step_order' => 0,
+            'title'       => $validated['title'],
+            'content'     => $validated['content'] ?? null,
+            'meta_data'   => $validated['meta_data'] ?? null,
+
+            // Masukkan path ke kolom baru
+            'file_executive_summary' => $pathExecutive,
+            'file_approval_sheet'    => $pathApproval,
+            'file_proposal'          => $pathProposal,
+
+            'unit_id'            => $user->unit_id,
+            'creator_id'         => $user->id,
+            'status'             => 'DRAFT',
+            'current_step_order' => 1,
         ]);
 
         // Log pembuatan dokumen
         DocumentLog::create([
             'document_id' => $document->id,
-            'user_id' => $user->id,
-            'action' => 'CREATED',
-            'note' => 'Dokumen dibuat',
+            'user_id'     => $user->id,
+            'action'      => 'CREATED',
+            'note'        => 'Dokumen dibuat',
         ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Dokumen berhasil dibuat',
-            'data' => $document
+            'data'    => $document
         ], 201);
     }
 
@@ -285,6 +325,7 @@ class DocumentController extends Controller
     {
         $validated = $request->validate([
             'note' => 'nullable|string',
+            'signature' => 'required|string', // Base64 string
         ]);
 
         $document = Document::findOrFail($id);
@@ -298,11 +339,27 @@ class DocumentController extends Controller
             ], 403);
         }
 
+        // Handle signature
+        $signaturePath = null;
+        if ($validated['signature']) {
+            try {
+                $signatureImage = base64_decode(preg_replace('/^data:image\/\w+;base64,/', '', $validated['signature']));
+                $signaturePath = 'signatures/' . $document->id . '_' . $user->id . '_' . time() . '.png';
+                Storage::disk('private')->put($signaturePath, $signatureImage);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal menyimpan tanda tangan: ' . $e->getMessage(),
+                ], 500);
+            }
+        }
+
         try {
             $result = $this->workflowEngine->approveDocument(
                 $document,
                 $user,
-                $validated['note'] ?? null
+                $validated['note'] ?? null,
+                $signaturePath // Pass file path
             );
 
             return response()->json([
@@ -311,6 +368,11 @@ class DocumentController extends Controller
                 'data' => $document->fresh(['currentHolder', 'logs'])
             ]);
         } catch (\Exception $e) {
+            // If transaction fails, delete the created signature file
+            if ($signaturePath && Storage::disk('private')->exists($signaturePath)) {
+                Storage::disk('private')->delete($signaturePath);
+            }
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error: ' . $e->getMessage()
@@ -409,46 +471,102 @@ class DocumentController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $validated = $request->validate([
-            'title' => 'sometimes|string|max:255',
-            'content' => 'nullable|array',  // Changed from string to array
-            'attachment_path' => 'nullable|string',
-            'meta_data' => 'nullable|array',
-        ]);
-
         $document = Document::findOrFail($id);
         $user = $request->user();
 
-        // Validasi: Hanya pembuat atau current holder yang bisa update
+        // Validasi Akses
         if ($document->creator_id !== $user->id && $document->current_holder_id !== $user->id) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Anda tidak memiliki akses untuk update dokumen ini'
-            ], 403);
+            return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
 
-        // Validasi: Dokumen harus dalam status DRAFT atau REVISED
+        // Validasi Status
         if (!in_array($document->status, ['DRAFT', 'REVISED'])) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Dokumen tidak dapat diupdate karena sudah disubmit'
-            ], 400);
+            return response()->json(['success' => false, 'message' => 'Dokumen sudah dikunci'], 400);
         }
 
-        $document->update($validated);
+        $validated = $request->validate([
+            'title'             => 'sometimes|string|max:255',
+            'content'           => 'nullable|array',
+            'meta_data'         => 'nullable|array',
 
-        // Log update dokumen
+            // Validasi file update (semua nullable karena user mungkin cuma mau ganti judul)
+            'executive_summary' => 'nullable|file|mimes:pdf,doc,docx|max:10240',
+            'approval_sheet'    => 'nullable|file|mimes:pdf,jpg,png|max:5120',
+            'proposal'          => 'nullable|file|mimes:pdf|max:20480',
+        ]);
+
+        // Array untuk menampung data yang akan diupdate
+        $dataToUpdate = [
+            'title'     => $validated['title'] ?? $document->title,
+            'content'   => $validated['content'] ?? $document->content,
+            'meta_data' => $validated['meta_data'] ?? $document->meta_data,
+        ];
+
+        // --- UPDATE FILE LOGIC ---
+
+        // 1. Cek update Executive Summary
+        if ($request->hasFile('executive_summary')) {
+            // (Opsional) Hapus file lama jika ada
+            $this->deleteOldFile($document->file_executive_summary);
+
+            // Upload baru
+            $dataToUpdate['file_executive_summary'] = Storage::url(
+                $request->file('executive_summary')->store('documents/executive_summaries', 'public')
+            );
+        }
+
+        // 2. Cek update Approval Sheet
+        if ($request->hasFile('approval_sheet')) {
+            $this->deleteOldFile($document->file_approval_sheet);
+
+            $dataToUpdate['file_approval_sheet'] = Storage::url(
+                $request->file('approval_sheet')->store('documents/approval_sheets', 'public')
+            );
+        }
+
+        // 3. Cek update Proposal
+        if ($request->hasFile('proposal')) {
+            $this->deleteOldFile($document->file_proposal);
+
+            $dataToUpdate['file_proposal'] = Storage::url(
+                $request->file('proposal')->store('documents/proposals', 'public')
+            );
+        }
+
+        $document->update($dataToUpdate);
+
         DocumentLog::create([
             'document_id' => $document->id,
-            'user_id' => $user->id,
-            'action' => 'UPDATED',
-            'note' => 'Dokumen diupdate',
+            'user_id'     => $user->id,
+            'action'      => 'UPDATED',
+            'note'        => 'Dokumen dan lampiran diperbarui',
         ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Dokumen berhasil diupdate',
-            'data' => $document->fresh()
+            'data'    => $document->fresh()
         ]);
+    }
+
+    /**
+     * Helper: Hapus file lama dari storage jika ada
+     * Url dari Storage::url() biasanya "/storage/path/to/file.pdf"
+     * Kita perlu convert balik jadi path relative "public/path/to/file.pdf" atau sesuai disk
+     */
+    private function deleteOldFile($fullUrl)
+    {
+        if (!$fullUrl) return;
+
+        // Asumsi URL: http://domain.com/storage/documents/file.pdf
+        // atau path relative: /storage/documents/file.pdf
+
+        // Hapus prefix "/storage/" untuk mendapatkan path relative di disk 'public'
+        $relativePath = str_replace('/storage/', '', parse_url($fullUrl, PHP_URL_PATH));
+
+        // Karena di store() kita pakai disk 'public', delete juga di disk 'public'
+        if (Storage::disk('public')->exists($relativePath)) {
+            Storage::disk('public')->delete($relativePath);
+        }
     }
 }
