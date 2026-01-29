@@ -37,17 +37,17 @@ class WorkflowSeeder extends Seeder
         $fakultas = Unit::create([
             'name' => 'Fakultas Sains dan Matematika',
             'code' => 'FSM',
-            'category' => 'Fakultas',
+            'category' => 'FAKULTAS',
             'parent_id' => null
         ]);
 
         // Departemen (6)
-        $deptStat = Unit::create(['name' => 'Departemen Statistika', 'code' => 'STAT', 'category' => 'Departemen', 'parent_id' => $fakultas->id]);
-        $deptMath = Unit::create(['name' => 'Departemen Matematika', 'code' => 'MATH', 'category' => 'Departemen', 'parent_id' => $fakultas->id]);
-        $deptFis = Unit::create(['name' => 'Departemen Fisika', 'code' => 'FIS', 'category' => 'Departemen', 'parent_id' => $fakultas->id]);
-        $deptIF = Unit::create(['name' => 'Departemen Informatika', 'code' => 'IF', 'category' => 'Departemen', 'parent_id' => $fakultas->id]);
-        $deptKim = Unit::create(['name' => 'Departemen Kimia', 'code' => 'KIM', 'category' => 'Departemen', 'parent_id' => $fakultas->id]);
-        $deptBio = Unit::create(['name' => 'Departemen Biologi', 'code' => 'BIO', 'category' => 'Departemen', 'parent_id' => $fakultas->id]);
+        $deptStat = Unit::create(['name' => 'Departemenra Statistika', 'code' => 'STAT', 'category' => 'DEPARTEMEN', 'parent_id' => $fakultas->id]);
+        $deptMath = Unit::create(['name' => 'Departemen Matematika', 'code' => 'MATH', 'category' => 'DEPARTEMEN', 'parent_id' => $fakultas->id]);
+        $deptFis = Unit::create(['name' => 'Departemen Fisika', 'code' => 'FIS', 'category' => 'DEPARTEMEN', 'parent_id' => $fakultas->id]);
+        $deptIF = Unit::create(['name' => 'Departemen Informatika', 'code' => 'IF', 'category' => 'DEPARTEMEN', 'parent_id' => $fakultas->id]);
+        $deptKim = Unit::create(['name' => 'Departemen Kimia', 'code' => 'KIM', 'category' => 'DEPARTEMEN', 'parent_id' => $fakultas->id]);
+        $deptBio = Unit::create(['name' => 'Departemen Biologi', 'code' => 'BIO', 'category' => 'DEPARTEMEN', 'parent_id' => $fakultas->id]);
 
         // HMD - Himpunan Mahasiswa Departemen (6)
         $himasta = Unit::create(['name' => 'Himpunan Mahasiswa Statistika', 'code' => 'HIMASTA', 'category' => 'HMD', 'parent_id' => $deptStat->id]);
@@ -61,7 +61,7 @@ class WorkflowSeeder extends Seeder
         $bem = Unit::create(['name' => 'BEM FSM', 'code' => 'BEM-FSM', 'category' => 'BEM', 'parent_id' => $fakultas->id]);
 
         // Senat
-        $senat = Unit::create(['name' => 'Senat FSM', 'code' => 'SENAT-FSM', 'category' => 'Senat', 'parent_id' => $fakultas->id]);
+        $senat = Unit::create(['name' => 'Senat FSM', 'code' => 'SENAT-FSM', 'category' => 'SENAT', 'parent_id' => $fakultas->id]);
 
         // UKM - Unit Kegiatan Mahasiswa (6)
         $madani = Unit::create(['name' => 'MADANI', 'code' => 'MADANI', 'category' => 'UKM', 'parent_id' => $fakultas->id]);
