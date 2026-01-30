@@ -210,11 +210,38 @@ class RoomController extends Controller
 
         $room = Room::findOrFail($id);
 
+        \Log::info('🔍 RoomController.checkAvailability() - REQUEST', [
+            'room_id' => $id,
+            'room_name' => $room->name,
+            'date' => $request->date,
+            'start_time' => $request->start_time,
+            'end_time' => $request->end_time,
+        ]);
+
+        // First, let's see all bookings for this room on this date
+        $allBookings = RoomBooking::where('room_id', $id)
+            ->where('booking_date', $request->date)
+            ->get();
+        
+        \Log::info('📋 All bookings for this room/date', [
+            'count' => $allBookings->count(),
+            'bookings' => $allBookings->map(fn($b) => [
+                'id' => $b->id,
+                'start_time' => $b->start_time,
+                'end_time' => $b->end_time,
+                'status' => $b->status,
+            ])->toArray(),
+        ]);
+
         $isAvailable = $room->isAvailable(
             $request->date,
             $request->start_time,
             $request->end_time
         );
+
+        \Log::info('📊 Availability FINAL result', [
+            'available' => $isAvailable,
+        ]);
 
         // Get conflicting bookings if not available
         $conflicts = null;
@@ -223,19 +250,19 @@ class RoomController extends Controller
                 ->where('room_id', $id)
                 ->where('booking_date', $request->date)
                 ->whereIn('status', ['PENDING', 'APPROVED'])
-                ->where(function ($q) use ($request) {
-                    $q->where(function ($q2) use ($request) {
-                        $q2->where('start_time', '<=', $request->start_time)
-                           ->where('end_time', '>', $request->start_time);
-                    })->orWhere(function ($q2) use ($request) {
-                        $q2->where('start_time', '<', $request->end_time)
-                           ->where('end_time', '>=', $request->end_time);
-                    })->orWhere(function ($q2) use ($request) {
-                        $q2->where('start_time', '>=', $request->start_time)
-                           ->where('end_time', '<=', $request->end_time);
-                    });
-                })
+                ->where('start_time', '<', $request->end_time)
+                ->where('end_time', '>', $request->start_time)
                 ->get();
+            
+            \Log::info('⚠️ Conflicts found', [
+                'count' => $conflicts->count(),
+                'conflicts' => $conflicts->map(fn($b) => [
+                    'id' => $b->id,
+                    'start' => $b->start_time,
+                    'end' => $b->end_time,
+                    'status' => $b->status,
+                ]),
+            ]);
         }
 
         return response()->json([

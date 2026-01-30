@@ -29,8 +29,6 @@ class RoomBooking extends Model
 
     protected $casts = [
         'booking_date' => 'date',
-        'start_time' => 'datetime:H:i',
-        'end_time' => 'datetime:H:i',
         'approved_at' => 'datetime',
         'expected_participants' => 'integer',
     ];

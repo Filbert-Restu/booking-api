@@ -11,6 +11,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\RoomController;
 use App\Http\Controllers\RoomBookingController;
 use App\Http\Controllers\SignController;
+use App\Http\Controllers\DocumentTemplateController;
 
 // Get authenticated user
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
@@ -47,6 +48,18 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/', [SignController::class, 'store']);     // Upload tanda tangan
         Route::put('/{id}', [SignController::class, 'update']); // Update tanda tangan
         Route::delete('/{id}', [SignController::class, 'destroy']); // Hapus tanda tangan
+    });
+
+    // Document Template Routes (Kemahasiswaan)
+    Route::prefix('document-templates')->group(function () {
+        Route::get('/active', [DocumentTemplateController::class, 'getActiveTemplates']); // Get active templates (HARUS DI ATAS /{id})
+        Route::get('/', [DocumentTemplateController::class, 'index']);                    // List templates
+        Route::get('/{id}', [DocumentTemplateController::class, 'show']);                 // Detail template
+        Route::get('/{id}/download', [DocumentTemplateController::class, 'download']);    // Download template
+        Route::post('/', [DocumentTemplateController::class, 'store']);                   // Upload template
+        Route::post('/{id}', [DocumentTemplateController::class, 'update']);              // Update template (form-data PUT workaround)
+        Route::patch('/{id}/activate', [DocumentTemplateController::class, 'activate']);  // Set as active
+        Route::delete('/{id}', [DocumentTemplateController::class, 'destroy']);           // Delete template
     });
 
     // Workflow Routes

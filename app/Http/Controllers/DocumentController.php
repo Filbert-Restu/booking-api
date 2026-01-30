@@ -37,7 +37,7 @@ class DocumentController extends Controller
 
         // Jika Admin, return semua dokumen
         if ($isAdmin) {
-            $query = Document::with(['workflow', 'currentHolder', 'unit', 'logs']);
+            $query = Document::with(['workflow', 'currentHolder', 'creator', 'unit', 'logs']);
 
             // Filter by status
             if ($request->has('status')) {
@@ -66,7 +66,7 @@ class DocumentController extends Controller
 
         // Untuk user biasa
         // Dokumen yang dibuat user
-        $myDocumentsQuery = Document::with(['workflow', 'currentHolder', 'unit'])
+        $myDocumentsQuery = Document::with(['workflow', 'currentHolder', 'creator', 'unit'])
             ->where('creator_id', $user->id);
 
         // Filter by status untuk my_documents
@@ -82,7 +82,7 @@ class DocumentController extends Controller
         $myDocuments = $myDocumentsQuery->latest()->get();
 
         // Dokumen yang sedang menunggu action dari user ini
-        $pendingDocumentsQuery = Document::with(['workflow', 'unit'])
+        $pendingDocumentsQuery = Document::with(['workflow', 'creator', 'unit'])
             ->where('current_holder_id', $user->id)
             ->where('status', 'IN_PROGRESS');
 
@@ -100,7 +100,7 @@ class DocumentController extends Controller
             ->pluck('document_id')
             ->unique();
 
-        $processedDocumentsQuery = Document::with(['workflow', 'currentHolder', 'unit'])
+        $processedDocumentsQuery = Document::with(['workflow', 'currentHolder', 'creator', 'unit'])
             ->whereIn('id', $processedDocumentIds)
             ->where('creator_id', '!=', $user->id); // Hindari duplikasi dengan my_documents
 
@@ -141,6 +141,7 @@ class DocumentController extends Controller
             'workflow.steps',
             'currentHolder.role',
             'currentHolder.unit',
+            'creator.role',
             'unit',
             'logs.user.role'
         ])->findOrFail($id);
@@ -251,7 +252,7 @@ class DocumentController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Dokumen berhasil dibuat',
-            'data'    => $document
+            'data'    => $document->fresh(['creator'])
         ], 201);
     }
 
@@ -314,7 +315,7 @@ class DocumentController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Dokumen berhasil disubmit dan diteruskan ke approver pertama',
-            'data' => $document->fresh(['currentHolder', 'logs'])
+            'data' => $document->fresh(['currentHolder', 'creator', 'logs'])
         ]);
     }
 
@@ -365,7 +366,7 @@ class DocumentController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => $result,
-                'data' => $document->fresh(['currentHolder', 'logs'])
+                'data' => $document->fresh(['currentHolder', 'creator', 'logs'])
             ]);
         } catch (\Exception $e) {
             // If transaction fails, delete the created signature file
@@ -420,7 +421,7 @@ class DocumentController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Dokumen berhasil ditolak',
-            'data' => $document->fresh(['logs'])
+            'data' => $document->fresh(['creator', 'logs'])
         ]);
     }
 
@@ -456,7 +457,7 @@ class DocumentController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => $result,
-                'data' => $document->fresh(['currentHolder', 'logs'])
+                'data' => $document->fresh(['currentHolder', 'creator', 'logs'])
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -498,8 +499,8 @@ class DocumentController extends Controller
         // Array untuk menampung data yang akan diupdate
         $dataToUpdate = [
             'title'     => $validated['title'] ?? $document->title,
-            'content'   => $validated['content'] ?? $document->content,
-            'meta_data' => $validated['meta_data'] ?? $document->meta_data,
+            'content'   => array_merge($document->content ?? [], $validated['content'] ?? []),
+            'meta_data' => array_merge($document->meta_data ?? [], $validated['meta_data'] ?? []),
         ];
 
         // --- UPDATE FILE LOGIC ---
@@ -545,7 +546,7 @@ class DocumentController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Dokumen berhasil diupdate',
-            'data'    => $document->fresh()
+            'data'    => $document->fresh(['creator'])
         ]);
     }
 

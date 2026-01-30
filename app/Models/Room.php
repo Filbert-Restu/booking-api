@@ -60,31 +60,77 @@ class Room extends Model
         string $endTime,
         ?int $excludeBookingId = null
     ): bool {
+        // Normalize time format to include seconds for proper comparison
+        $startTime = strlen($startTime) === 5 ? $startTime . ':00' : $startTime;
+        $endTime = strlen($endTime) === 5 ? $endTime . ':00' : $endTime;
+
+        // Check 1: RoomBookings with PENDING or APPROVED status
         $query = $this->bookings()
             ->where('booking_date', $date)
             ->whereIn('status', ['PENDING', 'APPROVED'])
-            ->where(function ($q) use ($startTime, $endTime) {
-                // Cek overlap waktu
-                $q->where(function ($q2) use ($startTime, $endTime) {
-                    // Start time di antara booking yang ada
-                    $q2->where('start_time', '<=', $startTime)
-                       ->where('end_time', '>', $startTime);
-                })->orWhere(function ($q2) use ($startTime, $endTime) {
-                    // End time di antara booking yang ada
-                    $q2->where('start_time', '<', $endTime)
-                       ->where('end_time', '>=', $endTime);
-                })->orWhere(function ($q2) use ($startTime, $endTime) {
-                    // Booking yang ada di antara start dan end
-                    $q2->where('start_time', '>=', $startTime)
-                       ->where('end_time', '<=', $endTime);
-                });
-            });
+            ->where('start_time', '<', $endTime)
+            ->where('end_time', '>', $startTime);
 
         if ($excludeBookingId) {
             $query->where('id', '!=', $excludeBookingId);
         }
 
-        return $query->count() === 0;
+        $bookingConflicts = $query->get();
+        
+        // Check 2: Documents in workflow (IN_PROGRESS, REVISION) with room reservation
+        $documentConflicts = \DB::table('documents')
+            ->whereIn('status', ['IN_PROGRESS', 'REVISION'])
+            ->whereNotNull('content')
+            ->get()
+            ->filter(function($doc) use ($date, $startTime, $endTime) {
+                $content = json_decode($doc->content, true);
+                
+                // Check if this is a room reservation document
+                if (!isset($content['room_id']) || !isset($content['booking_date'])) {
+                    return false;
+                }
+                
+                // Check if it's for this room
+                if ($content['room_id'] != $this->id) {
+                    return false;
+                }
+                
+                // Check date match
+                if ($content['booking_date'] !== $date) {
+                    return false;
+                }
+                
+                // Check time overlap
+                $docStart = strlen($content['start_time']) === 5 ? $content['start_time'] . ':00' : $content['start_time'];
+                $docEnd = strlen($content['end_time']) === 5 ? $content['end_time'] . ':00' : $content['end_time'];
+                
+                return ($docStart < $endTime) && ($docEnd > $startTime);
+            });
+        
+        $totalConflicts = $bookingConflicts->count() + $documentConflicts->count();
+        
+        \Log::info('🔍 Room.isAvailable() - DETAILED', [
+            'room_id' => $this->id,
+            'date' => $date,
+            'start_time_input' => $startTime,
+            'end_time_input' => $endTime,
+            'booking_conflicts' => $bookingConflicts->count(),
+            'document_conflicts' => $documentConflicts->count(),
+            'total_conflicts' => $totalConflicts,
+            'booking_details' => $bookingConflicts->map(fn($b) => [
+                'id' => $b->id,
+                'start_time' => $b->start_time,
+                'end_time' => $b->end_time,
+                'status' => $b->status,
+            ])->toArray(),
+            'document_details' => $documentConflicts->map(fn($d) => [
+                'id' => $d->id,
+                'title' => $d->title,
+                'status' => $d->status,
+            ])->values()->toArray(),
+        ]);
+
+        return $totalConflicts === 0;
     }
 
     /**
