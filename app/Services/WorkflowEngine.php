@@ -59,6 +59,9 @@ class WorkflowEngine
                 throw new \Exception("User untuk langkah selanjutnya tidak ditemukan. Cek konfigurasi Unit/Role.");
             }
 
+            // Load role relationship
+            $nextUser->load('role');
+
             // 6. Update Dokumen (Oper Bola)
             $document->update([
                 'current_holder_id' => $nextUser->id,
@@ -66,7 +69,8 @@ class WorkflowEngine
                 'status' => 'IN_PROGRESS'
             ]);
 
-            return "Dokumen diteruskan ke: " . $nextUser->name . " (" . $nextUser->role->name . ")";
+            $roleName = $nextUser->role ? $nextUser->role->name : 'Unknown Role';
+            return "Dokumen diteruskan ke: " . $nextUser->name . " (" . $roleName . ")";
         });
     }
 
@@ -112,6 +116,10 @@ class WorkflowEngine
     {
         $originUnit = $doc->unit; // Unit pembuat surat (misal: HIMA)
 
+        if (!$originUnit) {
+            throw new \Exception("Dokumen tidak memiliki unit. Tidak dapat menentukan approver.");
+        }
+
         // Query Builder Awal
         $query = User::query()->whereHas('role', function($q) use ($step) {
             $q->where('slug', $step->target_role_slug);
@@ -124,17 +132,30 @@ class WorkflowEngine
 
             case 'PARENT':
                 // Cari di induk (Prodi)
+                if (!$originUnit->parent_id) {
+                    throw new \Exception("Unit {$originUnit->name} tidak memiliki parent unit. Tidak dapat menentukan approver untuk scope PARENT.");
+                }
                 return $query->where('unit_id', $originUnit->parent_id)->first();
 
             case 'FACULTY_LEADER':
                 // Cari di Fakultas (Unit tanpa parent / Root)
                 $facultyUnit = Unit::where('category', 'FAKULTAS')->first();
+                if (!$facultyUnit) {
+                    throw new \Exception("Unit dengan category FAKULTAS tidak ditemukan.");
+                }
                 return $query->where('unit_id', $facultyUnit->id)->first();
 
             case 'SPECIFIC_CATEGORY':
                 // Cari Unit lain (Misal: SENAT)
                 // Asumsi: Kita cari unit 'SENAT' yang satu fakultas/kampus
-                $targetUnit = Unit::where('category', $step->target_category_lookup)->first();
+                if (!$step->target_category_lookup) {
+                    throw new \Exception("target_category_lookup tidak didefinisikan untuk step dengan scope SPECIFIC_CATEGORY.");
+                }
+                // Case-insensitive search untuk menghindari mismatch 'Senat' vs 'SENAT'
+                $targetUnit = Unit::whereRaw('LOWER(category) = ?', [strtolower($step->target_category_lookup)])->first();
+                if (!$targetUnit) {
+                    throw new \Exception("Unit dengan category {$step->target_category_lookup} tidak ditemukan. Pastikan unit sudah dibuat di database.");
+                }
                 return $query->where('unit_id', $targetUnit->id)->first();
 
             default:

@@ -327,7 +327,7 @@ class DocumentController extends Controller
             'signature' => 'required|string', // Base64 string
         ]);
 
-        $document = Document::findOrFail($id);
+        $document = Document::with(['unit', 'workflow'])->findOrFail($id);
         $user = $request->user();
 
         // Validasi: Hanya current holder yang bisa approve
@@ -492,16 +492,35 @@ class DocumentController extends Controller
             'executive_summary' => 'nullable|file|mimes:pdf,doc,docx|max:10240',
             'approval_sheet'    => 'nullable|file|mimes:pdf,jpg,png|max:5120',
             'proposal'          => 'nullable|file|mimes:pdf|max:20480',
-
-            // --- VALIDASI CONTENT FIELDS ---
-            'content.ketua_pelaksana_nim' => 'nullable|string|regex:/^\d{14}$/',
-            'content.ketua_pelaksana_hp' => 'nullable|string|regex:/^\d{12,13}$/',
         ]);
+
+        // Validasi manual untuk content fields (agar tidak membuang field lain)
+        $content = $request->input('content', []);
+
+        // Validasi NIM jika ada
+        if (isset($content['ketua_pelaksana_nim']) && !empty($content['ketua_pelaksana_nim'])) {
+            if (!preg_match('/^\d{14}$/', $content['ketua_pelaksana_nim'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'NIM harus 14 digit angka'
+                ], 422);
+            }
+        }
+
+        // Validasi HP jika ada
+        if (isset($content['ketua_pelaksana_hp']) && !empty($content['ketua_pelaksana_hp'])) {
+            if (!preg_match('/^\d{12,13}$/', $content['ketua_pelaksana_hp'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Nomor HP harus 12-13 digit angka'
+                ], 422);
+            }
+        }
 
         // Array untuk menampung data yang akan diupdate
         $dataToUpdate = [
             'title'     => $validated['title'] ?? $document->title,
-            'content'   => array_merge($document->content ?? [], $validated['content'] ?? []),
+            'content'   => array_merge($document->content ?? [], $content),
             'meta_data' => array_merge($document->meta_data ?? [], $validated['meta_data'] ?? []),
         ];
 

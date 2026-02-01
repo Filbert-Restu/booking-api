@@ -171,7 +171,7 @@ class WorkflowSeeder extends Seeder
             'applies_to_category' => 'HMD'
         ]);
         WorkflowStep::create(['workflow_id' => $workflowHMD->id, 'step_order' => 1, 'step_name' => 'Review Ketua HMD', 'target_role_slug' => 'ketua-ormawa', 'scope_type' => 'SELF', 'target_category_lookup' => null]);
-        WorkflowStep::create(['workflow_id' => $workflowHMD->id, 'step_order' => 2, 'step_name' => 'Kajian Senat FSM', 'target_role_slug' => 'senat', 'scope_type' => 'SPECIFIC_CATEGORY', 'target_category_lookup' => 'Senat']);
+        WorkflowStep::create(['workflow_id' => $workflowHMD->id, 'step_order' => 2, 'step_name' => 'Kajian Senat FSM', 'target_role_slug' => 'senat', 'scope_type' => 'SPECIFIC_CATEGORY', 'target_category_lookup' => 'SENAT']);
         WorkflowStep::create(['workflow_id' => $workflowHMD->id, 'step_order' => 3, 'step_name' => 'Persetujuan Dosen Pendamping', 'target_role_slug' => 'dosen-pendamping', 'scope_type' => 'SELF', 'target_category_lookup' => null]);
         WorkflowStep::create(['workflow_id' => $workflowHMD->id, 'step_order' => 4, 'step_name' => 'Review Ketua Departemen', 'target_role_slug' => 'ketua-departemen', 'scope_type' => 'PARENT', 'target_category_lookup' => null]);
         WorkflowStep::create(['workflow_id' => $workflowHMD->id, 'step_order' => 5, 'step_name' => 'Persetujuan Kemahasiswaan', 'target_role_slug' => 'kemahasiswaan', 'scope_type' => 'FACULTY_LEADER', 'target_category_lookup' => null]);
@@ -186,7 +186,7 @@ class WorkflowSeeder extends Seeder
             'applies_to_category' => 'BEM'
         ]);
         WorkflowStep::create(['workflow_id' => $workflowBEM->id, 'step_order' => 1, 'step_name' => 'Review Ketua BEM', 'target_role_slug' => 'ketua-ormawa', 'scope_type' => 'SELF', 'target_category_lookup' => null]);
-        WorkflowStep::create(['workflow_id' => $workflowBEM->id, 'step_order' => 2, 'step_name' => 'Kajian Senat FSM', 'target_role_slug' => 'senat', 'scope_type' => 'SPECIFIC_CATEGORY', 'target_category_lookup' => 'Senat']);
+        WorkflowStep::create(['workflow_id' => $workflowBEM->id, 'step_order' => 2, 'step_name' => 'Kajian Senat FSM', 'target_role_slug' => 'senat', 'scope_type' => 'SPECIFIC_CATEGORY', 'target_category_lookup' => 'SENAT']);
         WorkflowStep::create(['workflow_id' => $workflowBEM->id, 'step_order' => 3, 'step_name' => 'Persetujuan Dosen Pendamping', 'target_role_slug' => 'dosen-pendamping', 'scope_type' => 'SELF', 'target_category_lookup' => null]);
         WorkflowStep::create(['workflow_id' => $workflowBEM->id, 'step_order' => 4, 'step_name' => 'Persetujuan Kemahasiswaan', 'target_role_slug' => 'kemahasiswaan', 'scope_type' => 'FACULTY_LEADER', 'target_category_lookup' => null]);
         WorkflowStep::create(['workflow_id' => $workflowBEM->id, 'step_order' => 5, 'step_name' => 'Persetujuan Wadek 1', 'target_role_slug' => 'wadek1', 'scope_type' => 'FACULTY_LEADER', 'target_category_lookup' => null]);
@@ -213,7 +213,7 @@ class WorkflowSeeder extends Seeder
             'applies_to_category' => 'UKM'
         ]);
         WorkflowStep::create(['workflow_id' => $workflowUKM->id, 'step_order' => 1, 'step_name' => 'Review Ketua UKM', 'target_role_slug' => 'ketua-ormawa', 'scope_type' => 'SELF', 'target_category_lookup' => null]);
-        WorkflowStep::create(['workflow_id' => $workflowUKM->id, 'step_order' => 2, 'step_name' => 'Kajian Senat FSM', 'target_role_slug' => 'senat', 'scope_type' => 'SPECIFIC_CATEGORY', 'target_category_lookup' => 'Senat']);
+        WorkflowStep::create(['workflow_id' => $workflowUKM->id, 'step_order' => 2, 'step_name' => 'Kajian Senat FSM', 'target_role_slug' => 'senat', 'scope_type' => 'SPECIFIC_CATEGORY', 'target_category_lookup' => 'SENAT']);
         WorkflowStep::create(['workflow_id' => $workflowUKM->id, 'step_order' => 3, 'step_name' => 'Persetujuan Dosen Pendamping', 'target_role_slug' => 'dosen-pendamping', 'scope_type' => 'SELF', 'target_category_lookup' => null]);
         WorkflowStep::create(['workflow_id' => $workflowUKM->id, 'step_order' => 4, 'step_name' => 'Persetujuan Kemahasiswaan', 'target_role_slug' => 'kemahasiswaan', 'scope_type' => 'FACULTY_LEADER', 'target_category_lookup' => null]);
         WorkflowStep::create(['workflow_id' => $workflowUKM->id, 'step_order' => 5, 'step_name' => 'Persetujuan Wadek 1', 'target_role_slug' => 'wadek1', 'scope_type' => 'FACULTY_LEADER', 'target_category_lookup' => null]);
