@@ -196,7 +196,7 @@ class DocumentController extends Controller
 
             // Proposal (Wajib PDF agar tidak berantakan saat preview, max 20MB)
             'proposal'          => 'nullable|file|mimes:pdf|max:20480',
-            
+
             // --- VALIDASI CONTENT FIELDS ---
             'content.ketua_pelaksana_nim' => 'nullable|string|regex:/^\d{14}$/',
             'content.ketua_pelaksana_hp' => 'nullable|string|regex:/^\d{12,13}$/',
@@ -204,28 +204,22 @@ class DocumentController extends Controller
 
         $user = $request->user();
 
-        // 1. Handle Executive Summary
+        // 1. Handle Executive Summary (PRIVATE storage for security)
         $pathExecutive = null;
         if ($request->hasFile('executive_summary')) {
-            $pathExecutive = Storage::url(
-                $request->file('executive_summary')->store('documents/executive_summaries', 'public')
-            );
+            $pathExecutive = $request->file('executive_summary')->store('documents/executive_summaries', 'private');
         }
 
-        // 2. Handle Approval Sheet
+        // 2. Handle Approval Sheet (PRIVATE storage for security)
         $pathApproval = null;
         if ($request->hasFile('approval_sheet')) {
-            $pathApproval = Storage::url(
-                $request->file('approval_sheet')->store('documents/approval_sheets', 'public')
-            );
+            $pathApproval = $request->file('approval_sheet')->store('documents/approval_sheets', 'private');
         }
 
-        // 3. Handle Proposal
+        // 3. Handle Proposal (PRIVATE storage for security)
         $pathProposal = null;
         if ($request->hasFile('proposal')) {
-            $pathProposal = Storage::url(
-                $request->file('proposal')->store('documents/proposals', 'public')
-            );
+            $pathProposal = $request->file('proposal')->store('documents/proposals', 'private');
         }
 
         $document = Document::create([
@@ -498,7 +492,7 @@ class DocumentController extends Controller
             'executive_summary' => 'nullable|file|mimes:pdf,doc,docx|max:10240',
             'approval_sheet'    => 'nullable|file|mimes:pdf,jpg,png|max:5120',
             'proposal'          => 'nullable|file|mimes:pdf|max:20480',
-            
+
             // --- VALIDASI CONTENT FIELDS ---
             'content.ketua_pelaksana_nim' => 'nullable|string|regex:/^\d{14}$/',
             'content.ketua_pelaksana_hp' => 'nullable|string|regex:/^\d{12,13}$/',
@@ -518,28 +512,24 @@ class DocumentController extends Controller
             // (Opsional) Hapus file lama jika ada
             $this->deleteOldFile($document->file_executive_summary);
 
-            // Upload baru
-            $dataToUpdate['file_executive_summary'] = Storage::url(
-                $request->file('executive_summary')->store('documents/executive_summaries', 'public')
-            );
+            // Upload baru (PRIVATE storage for security)
+            $dataToUpdate['file_executive_summary'] = $request->file('executive_summary')->store('documents/executive_summaries', 'private');
         }
 
         // 2. Cek update Approval Sheet
         if ($request->hasFile('approval_sheet')) {
             $this->deleteOldFile($document->file_approval_sheet);
 
-            $dataToUpdate['file_approval_sheet'] = Storage::url(
-                $request->file('approval_sheet')->store('documents/approval_sheets', 'public')
-            );
+            // Upload baru (PRIVATE storage for security)
+            $dataToUpdate['file_approval_sheet'] = $request->file('approval_sheet')->store('documents/approval_sheets', 'private');
         }
 
         // 3. Cek update Proposal
         if ($request->hasFile('proposal')) {
             $this->deleteOldFile($document->file_proposal);
 
-            $dataToUpdate['file_proposal'] = Storage::url(
-                $request->file('proposal')->store('documents/proposals', 'public')
-            );
+            // Upload baru (PRIVATE storage for security)
+            $dataToUpdate['file_proposal'] = $request->file('proposal')->store('documents/proposals', 'private');
         }
 
         $document->update($dataToUpdate);
@@ -559,23 +549,69 @@ class DocumentController extends Controller
     }
 
     /**
-     * Helper: Hapus file lama dari storage jika ada
-     * Url dari Storage::url() biasanya "/storage/path/to/file.pdf"
-     * Kita perlu convert balik jadi path relative "public/path/to/file.pdf" atau sesuai disk
+     * Serve stored file for a document (proposal / executive_summary / approval_sheet)
+     * Accessible only for users who can view the document (creator/current holder/processed/admin)
+     * URL: GET /documents/{id}/file/{type}
      */
-    private function deleteOldFile($fullUrl)
+    public function file(Request $request, $id, $type)
     {
-        if (!$fullUrl) return;
+        $user = $request->user();
+        $document = Document::findOrFail($id);
 
-        // Asumsi URL: http://domain.com/storage/documents/file.pdf
-        // atau path relative: /storage/documents/file.pdf
+        // Reuse access checks from show()
+        $isAdmin = $user->role->slug === 'admin';
+        $isCreator = $document->creator_id === $user->id;
+        $isCurrentHolder = $document->current_holder_id === $user->id;
 
-        // Hapus prefix "/storage/" untuk mendapatkan path relative di disk 'public'
-        $relativePath = str_replace('/storage/', '', parse_url($fullUrl, PHP_URL_PATH));
+        $hasProcessed = DocumentLog::where('document_id', $document->id)
+            ->where('user_id', $user->id)
+            ->whereIn('action', ['APPROVED', 'REJECTED', 'SUBMITTED', 'REVISED'])
+            ->exists();
 
-        // Karena di store() kita pakai disk 'public', delete juga di disk 'public'
-        if (Storage::disk('public')->exists($relativePath)) {
-            Storage::disk('public')->delete($relativePath);
+        if (!$isAdmin && !$isCreator && !$isCurrentHolder && !$hasProcessed) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak memiliki akses untuk melihat dokumen ini'
+            ], 403);
+        }
+
+        // Map type to column name
+        $map = [
+            'proposal' => 'file_proposal',
+            'executive-summary' => 'file_executive_summary',
+            'approval-sheet' => 'file_approval_sheet',
+        ];
+
+        if (!isset($map[$type])) {
+            return response()->json(['success' => false, 'message' => 'Invalid file type'], 400);
+        }
+
+        $col = $map[$type];
+        $path = $document->{$col};
+        if (!$path) {
+            return response()->json(['success' => false, 'message' => 'File not available'], 404);
+        }
+
+        // Read from private disk (storage/app)
+        if (!Storage::disk('private')->exists($path)) {
+            return response()->json(['success' => false, 'message' => 'File not found on disk'], 404);
+        }
+
+        // Serve file securely with authentication check
+        return response()->file(Storage::disk('private')->path($path));
+    }
+
+    /**
+     * Helper: Hapus file lama dari storage jika ada
+     * Path is relative to storage/app (private disk)
+     */
+    private function deleteOldFile($path)
+    {
+        if (!$path) return;
+
+        // Delete from private disk
+        if (Storage::disk('private')->exists($path)) {
+            Storage::disk('private')->delete($path);
         }
     }
 }
