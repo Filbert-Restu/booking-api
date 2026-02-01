@@ -48,6 +48,7 @@ class DocumentTemplateController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'template_type' => 'required|in:executive_summary,lembar_pengesahan',
+            'organization_type' => 'nullable|in:hmd,bem_ukm,senat',
             'template_name' => 'required|string|max:255',
             'file' => 'required|file|mimes:docx,doc|max:10240', // max 10MB
             'description' => 'nullable|string',
@@ -88,6 +89,7 @@ class DocumentTemplateController extends Controller
             // Create template
             $template = DocumentTemplate::create([
                 'template_type' => $request->template_type,
+                'organization_type' => $request->organization_type,
                 'template_name' => $request->template_name,
                 'file_path' => $path,
                 'file_url' => $fileUrl,

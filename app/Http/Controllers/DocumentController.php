@@ -196,6 +196,10 @@ class DocumentController extends Controller
 
             // Proposal (Wajib PDF agar tidak berantakan saat preview, max 20MB)
             'proposal'          => 'nullable|file|mimes:pdf|max:20480',
+            
+            // --- VALIDASI CONTENT FIELDS ---
+            'content.ketua_pelaksana_nim' => 'nullable|string|regex:/^\d{14}$/',
+            'content.ketua_pelaksana_hp' => 'nullable|string|regex:/^\d{12,13}$/',
         ]);
 
         $user = $request->user();
@@ -494,6 +498,10 @@ class DocumentController extends Controller
             'executive_summary' => 'nullable|file|mimes:pdf,doc,docx|max:10240',
             'approval_sheet'    => 'nullable|file|mimes:pdf,jpg,png|max:5120',
             'proposal'          => 'nullable|file|mimes:pdf|max:20480',
+            
+            // --- VALIDASI CONTENT FIELDS ---
+            'content.ketua_pelaksana_nim' => 'nullable|string|regex:/^\d{14}$/',
+            'content.ketua_pelaksana_hp' => 'nullable|string|regex:/^\d{12,13}$/',
         ]);
 
         // Array untuk menampung data yang akan diupdate

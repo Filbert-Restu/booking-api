@@ -16,6 +16,18 @@ class DocumentTemplate extends Model
         'version' => 'integer',
     ];
 
+    protected $fillable = [
+        'template_type',
+        'organization_type',
+        'template_name',
+        'file_path',
+        'file_url',
+        'version',
+        'is_active',
+        'uploaded_by',
+        'description',
+    ];
+
     /**
      * Relasi: Siapa yang upload template ini?
      */
