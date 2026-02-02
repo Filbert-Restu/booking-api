@@ -18,10 +18,10 @@ class AuthenticatedSessionController extends Controller
         $request->authenticate();
 
         $user = Auth::user();
-        
+
         // Load role dan unit untuk user
         $user->load(['role', 'unit']);
-        
+
         $token = $user->createToken('auth-token')->plainTextToken;
 
         return response()->json([

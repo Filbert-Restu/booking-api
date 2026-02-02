@@ -52,13 +52,15 @@ class Room extends Model
      * @param string $startTime Format: H:i
      * @param string $endTime Format: H:i
      * @param int|null $excludeBookingId ID booking yang dikecualikan (untuk update)
+     * @param int|null $excludeDocumentId ID document yang dikecualikan (untuk document yang baru submit)
      * @return bool
      */
     public function isAvailable(
         string $date,
         string $startTime,
         string $endTime,
-        ?int $excludeBookingId = null
+        ?int $excludeBookingId = null,
+        ?int $excludeDocumentId = null
     ): bool {
         // Normalize time format to include seconds for proper comparison
         $startTime = strlen($startTime) === 5 ? $startTime . ':00' : $startTime;
@@ -76,39 +78,45 @@ class Room extends Model
         }
 
         $bookingConflicts = $query->get();
-        
+
         // Check 2: Documents in workflow (IN_PROGRESS, REVISION) with room reservation
-        $documentConflicts = \DB::table('documents')
+        $documentQuery = \DB::table('documents')
             ->whereIn('status', ['IN_PROGRESS', 'REVISION'])
-            ->whereNotNull('content')
-            ->get()
+            ->whereNotNull('content');
+
+        // Exclude specific document if provided
+        if ($excludeDocumentId) {
+            $documentQuery->where('id', '!=', $excludeDocumentId);
+        }
+
+        $documentConflicts = $documentQuery->get()
             ->filter(function($doc) use ($date, $startTime, $endTime) {
                 $content = json_decode($doc->content, true);
-                
+
                 // Check if this is a room reservation document
                 if (!isset($content['room_id']) || !isset($content['booking_date'])) {
                     return false;
                 }
-                
+
                 // Check if it's for this room
                 if ($content['room_id'] != $this->id) {
                     return false;
                 }
-                
+
                 // Check date match
                 if ($content['booking_date'] !== $date) {
                     return false;
                 }
-                
+
                 // Check time overlap
                 $docStart = strlen($content['start_time']) === 5 ? $content['start_time'] . ':00' : $content['start_time'];
                 $docEnd = strlen($content['end_time']) === 5 ? $content['end_time'] . ':00' : $content['end_time'];
-                
+
                 return ($docStart < $endTime) && ($docEnd > $startTime);
             });
-        
+
         $totalConflicts = $bookingConflicts->count() + $documentConflicts->count();
-        
+
         \Log::info('🔍 Room.isAvailable() - DETAILED', [
             'room_id' => $this->id,
             'date' => $date,

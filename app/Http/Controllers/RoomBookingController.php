@@ -124,12 +124,24 @@ class RoomBookingController extends Controller
             ], 403);
         }
 
-        // Cek ketersediaan ruangan
+        // Cek apakah sudah ada booking untuk document ini
+        $existingBooking = RoomBooking::where('document_id', $request->document_id)->first();
+        if ($existingBooking) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Dokumen ini sudah memiliki booking ruangan',
+                'data' => $existingBooking->load(['room']),
+            ], 400);
+        }
+
+        // Cek ketersediaan ruangan (skip check untuk document_id yang sama di content)
         $room = Room::findOrFail($request->room_id);
         $isAvailable = $room->isAvailable(
             $request->booking_date,
             $request->start_time,
-            $request->end_time
+            $request->end_time,
+            null, // excludeBookingId
+            $request->document_id // excludeDocumentId - ignore this document in availability check
         );
 
         if (!$isAvailable) {
