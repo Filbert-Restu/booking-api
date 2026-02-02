@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Document;
 use App\Models\DocumentLog;
 use App\Services\WorkflowEngine;
+use App\Services\DocumentGenerationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -12,10 +13,12 @@ use Illuminate\Support\Facades\Storage;
 class DocumentController extends Controller
 {
     protected $workflowEngine;
+    protected $documentGenerationService;
 
-    public function __construct(WorkflowEngine $workflowEngine)
+    public function __construct(WorkflowEngine $workflowEngine, DocumentGenerationService $documentGenerationService)
     {
         $this->workflowEngine = $workflowEngine;
+        $this->documentGenerationService = $documentGenerationService;
     }
 
     /**
@@ -632,5 +635,114 @@ class DocumentController extends Controller
         if (Storage::disk('private')->exists($path)) {
             Storage::disk('private')->delete($path);
         }
+    }
+
+    /**
+     * Generate executive summary dari template
+     * POST /api/documents/{id}/generate/executive-summary
+     */
+    public function generateExecutiveSummary(Request $request, $id)
+    {
+        $document = Document::findOrFail($id);
+        $user = $request->user();
+
+        // Authorization check
+        if ($document->creator_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak memiliki akses'
+            ], 403);
+        }
+
+        try {
+            // Generate document
+            $filePath = $this->documentGenerationService->generateFromTemplate(
+                $document,
+                'executive_summary',
+                null
+            );
+
+            // Update document record
+            $document->update([
+                'file_executive_summary' => $filePath
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Executive summary berhasil digenerate',
+                'data' => [
+                    'file_path' => $filePath,
+                    'download_url' => route('api.documents.file', ['id' => $id, 'type' => 'executive-summary'])
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal generate executive summary: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate lembar pengesahan dari template
+     * POST /api/documents/{id}/generate/approval-sheet
+     */
+    public function generateApprovalSheet(Request $request, $id)
+    {
+        $document = Document::with('unit')->findOrFail($id);
+        $user = $request->user();
+
+        if ($document->creator_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak memiliki akses'
+            ], 403);
+        }
+
+        try {
+            // Generate document (no organization_type needed, use general template)
+            $filePath = $this->documentGenerationService->generateFromTemplate(
+                $document,
+                'lembar_pengesahan',
+                null  // No organization_type filter - use general template
+            );
+
+            // Update document record
+            $document->update([
+                'file_approval_sheet' => $filePath
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Lembar pengesahan berhasil digenerate',
+                'data' => [
+                    'file_path' => $filePath,
+                    'download_url' => route('api.documents.file', ['id' => $id, 'type' => 'approval-sheet'])
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal generate lembar pengesahan: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Map unit category to organization type
+     */
+    protected function mapCategoryToOrganizationType($category): string
+    {
+        $mapping = [
+            'HMD' => 'hmd',
+            'BEM' => 'bem_ukm',
+            'SENAT' => 'senat',
+            'Senat' => 'senat',
+            'UKM' => 'bem_ukm',
+        ];
+
+        return $mapping[$category] ?? 'hmd';
     }
 }

@@ -11,12 +11,12 @@ class Sign extends Model
 
     protected $fillable = [
         'user_id',
-        'signature',
+        'signature', // path to signature file
         'signed_at',
     ];
 
-    protected $dates = [
-        'signed_at',
+    protected $casts = [
+        'signed_at' => 'datetime',
     ];
 
     public function user()

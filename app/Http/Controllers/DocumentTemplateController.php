@@ -78,7 +78,7 @@ class DocumentTemplateController extends Controller
             $file = $request->file('file');
             $fileName = time() . '_' . $request->template_type . '_' . $file->getClientOriginalName();
             $path = $file->storeAs('document-templates', $fileName);
-            
+
             // Generate URL
             $fileUrl = Storage::url($path);
 
@@ -114,7 +114,7 @@ class DocumentTemplateController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             // Delete uploaded file if exists
             if (isset($path) && Storage::exists($path)) {
                 Storage::delete($path);
@@ -193,10 +193,10 @@ class DocumentTemplateController extends Controller
                 $file = $request->file('file');
                 $fileName = time() . '_' . $template->template_type . '_' . $file->getClientOriginalName();
                 $path = $file->storeAs('document-templates', $fileName);
-                
+
                 $updateData['file_path'] = $path;
                 $updateData['file_url'] = Storage::url($path);
-                
+
                 // Increment version
                 $updateData['version'] = $template->version + 1;
             }
@@ -311,15 +311,14 @@ class DocumentTemplateController extends Controller
      */
     public function getActiveTemplates()
     {
-        $executiveSummary = DocumentTemplate::getActiveTemplate('executive_summary');
-        $lembarPengesahan = DocumentTemplate::getActiveTemplate('lembar_pengesahan');
+        // Get all active templates
+        $templates = DocumentTemplate::where('is_active', true)
+            ->with('uploader:id,name,email')
+            ->get();
 
         return response()->json([
             'success' => true,
-            'data' => [
-                'executive_summary' => $executiveSummary,
-                'lembar_pengesahan' => $lembarPengesahan
-            ]
+            'data' => $templates
         ]);
     }
 
@@ -373,7 +372,7 @@ class DocumentTemplateController extends Controller
         try {
             $docxPath = Storage::path($template->file_path);
             $pdfPath = storage_path('app/temp/preview_' . $template->id . '.pdf');
-            
+
             // Create temp directory if not exists
             if (!file_exists(dirname($pdfPath))) {
                 mkdir(dirname($pdfPath), 0755, true);
@@ -381,10 +380,10 @@ class DocumentTemplateController extends Controller
 
             // Detect OS for proper command
             $isWindows = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
-            
+
             // Find LibreOffice executable
             $sofficeCommand = null;
-            
+
             if ($isWindows) {
                 // Windows: check common installation paths directly first
                 $possiblePaths = [
@@ -393,14 +392,14 @@ class DocumentTemplateController extends Controller
                     getenv('ProgramFiles') . '\\LibreOffice\\program\\soffice.exe',
                     getenv('ProgramFiles(x86)') . '\\LibreOffice\\program\\soffice.exe',
                 ];
-                
+
                 foreach ($possiblePaths as $path) {
                     if (file_exists($path)) {
                         $sofficeCommand = $path;
                         break;
                     }
                 }
-                
+
                 // If not found in common paths, try PATH
                 if (!$sofficeCommand) {
                     exec('where soffice 2>NUL', $output, $returnCode);
@@ -420,7 +419,7 @@ class DocumentTemplateController extends Controller
                     }
                 }
             }
-            
+
             // If LibreOffice not found, return fallback
             if (!$sofficeCommand) {
                 return response()->json([
@@ -428,7 +427,7 @@ class DocumentTemplateController extends Controller
                     'message' => 'LibreOffice tidak ditemukan. Pastikan sudah terinstall dan ada di PATH.',
                     'fallback' => 'docx',
                     'os' => PHP_OS,
-                    'hint' => $isWindows 
+                    'hint' => $isWindows
                         ? 'Install LibreOffice dan tambahkan ke PATH: C:\\Program Files\\LibreOffice\\program'
                         : 'Install dengan: sudo apt-get install libreoffice'
                 ], 503);
@@ -436,15 +435,15 @@ class DocumentTemplateController extends Controller
 
             // Build conversion command
             $outputDir = dirname($pdfPath);
-            
+
             // Normalize paths for Windows
             if ($isWindows) {
                 $docxPath = str_replace('/', '\\', $docxPath);
                 $outputDir = str_replace('/', '\\', $outputDir);
             }
-            
+
             // Build command - use quotes for paths with spaces
-            $command = '"' . $sofficeCommand . '"' . 
+            $command = '"' . $sofficeCommand . '"' .
                       ' --headless --convert-to pdf' .
                       ' --outdir "' . $outputDir . '"' .
                       ' "' . $docxPath . '"';
@@ -457,14 +456,14 @@ class DocumentTemplateController extends Controller
             } else {
                 exec($command . ' 2>&1', $execOutput, $execReturn);
             }
-            
+
             // The output file from LibreOffice will have the same name as input but with .pdf extension
             $baseFilename = pathinfo($docxPath, PATHINFO_FILENAME);
             $tempPdfPath = $outputDir . DIRECTORY_SEPARATOR . $baseFilename . '.pdf';
-            
+
             // Wait a bit for file to be written
             sleep(1);
-            
+
             if (file_exists($tempPdfPath)) {
                 // Rename to our target path if different
                 if ($tempPdfPath !== $pdfPath) {
@@ -555,7 +554,7 @@ class DocumentTemplateController extends Controller
                 getenv('ProgramFiles') . '\\LibreOffice\\program\\soffice.exe',
                 getenv('ProgramFiles(x86)') . '\\LibreOffice\\program\\soffice.exe',
             ];
-            
+
             foreach ($paths as $path) {
                 if ($path && strpos($path, 'false') === false) { // Skip if getenv returned false
                     $results['tests']['path_check'][] = [
@@ -563,7 +562,7 @@ class DocumentTemplateController extends Controller
                         'exists' => file_exists($path),
                         'readable' => is_readable($path)
                     ];
-                    
+
                     // If found, try to get version
                     if (file_exists($path)) {
                         exec('"' . $path . '" --version 2>&1', $vOut, $vCode);
@@ -580,7 +579,7 @@ class DocumentTemplateController extends Controller
         }
 
         // Test 3: Try to get version
-        $versionCommands = $isWindows 
+        $versionCommands = $isWindows
             ? ['soffice --version', '"C:\\Program Files\\LibreOffice\\program\\soffice.exe" --version']
             : ['libreoffice --version', 'soffice --version'];
 
@@ -622,7 +621,7 @@ class DocumentTemplateController extends Controller
         $results['status'] = $libreOfficeFound ? 'ready' : 'not_installed';
         $results['recommendation'] = $libreOfficeFound
             ? 'LibreOffice terdeteksi dan siap digunakan!'
-            : ($isWindows 
+            : ($isWindows
                 ? 'Install LibreOffice dan pastikan C:\\Program Files\\LibreOffice\\program ada di PATH environment variable. Restart terminal setelah update PATH.'
                 : 'Install LibreOffice: sudo apt-get install libreoffice');
 

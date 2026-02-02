@@ -125,17 +125,38 @@ class WorkflowEngine
             $q->where('slug', $step->target_role_slug);
         });
 
+        $approver = null;
+
         switch ($step->scope_type) {
             case 'SELF':
                 // Cari di unit pengirim (HIMA)
-                return $query->where('unit_id', $originUnit->id)->first();
+                $approver = $query->where('unit_id', $originUnit->id)->first();
+
+                if (!$approver) {
+                    throw new \Exception(
+                        "Tidak dapat menemukan approver untuk langkah '{$step->step_name}'. " .
+                        "Diperlukan user dengan role '{$step->target_role_slug}' di unit '{$originUnit->name}'. " .
+                        "Silakan hubungi admin untuk menambahkan user dengan role tersebut."
+                    );
+                }
+                return $approver;
 
             case 'PARENT':
                 // Cari di induk (Prodi)
                 if (!$originUnit->parent_id) {
                     throw new \Exception("Unit {$originUnit->name} tidak memiliki parent unit. Tidak dapat menentukan approver untuk scope PARENT.");
                 }
-                return $query->where('unit_id', $originUnit->parent_id)->first();
+                $approver = $query->where('unit_id', $originUnit->parent_id)->first();
+
+                if (!$approver) {
+                    $parentUnit = Unit::find($originUnit->parent_id);
+                    throw new \Exception(
+                        "Tidak dapat menemukan approver untuk langkah '{$step->step_name}'. " .
+                        "Diperlukan user dengan role '{$step->target_role_slug}' di unit parent '{$parentUnit->name}'. " .
+                        "Silakan hubungi admin untuk menambahkan user dengan role tersebut."
+                    );
+                }
+                return $approver;
 
             case 'FACULTY_LEADER':
                 // Cari di Fakultas (Unit tanpa parent / Root)
@@ -143,7 +164,16 @@ class WorkflowEngine
                 if (!$facultyUnit) {
                     throw new \Exception("Unit dengan category FAKULTAS tidak ditemukan.");
                 }
-                return $query->where('unit_id', $facultyUnit->id)->first();
+                $approver = $query->where('unit_id', $facultyUnit->id)->first();
+
+                if (!$approver) {
+                    throw new \Exception(
+                        "Tidak dapat menemukan approver untuk langkah '{$step->step_name}'. " .
+                        "Diperlukan user dengan role '{$step->target_role_slug}' di unit fakultas '{$facultyUnit->name}'. " .
+                        "Silakan hubungi admin untuk menambahkan user dengan role tersebut."
+                    );
+                }
+                return $approver;
 
             case 'SPECIFIC_CATEGORY':
                 // Cari Unit lain (Misal: SENAT)
@@ -156,7 +186,16 @@ class WorkflowEngine
                 if (!$targetUnit) {
                     throw new \Exception("Unit dengan category {$step->target_category_lookup} tidak ditemukan. Pastikan unit sudah dibuat di database.");
                 }
-                return $query->where('unit_id', $targetUnit->id)->first();
+                $approver = $query->where('unit_id', $targetUnit->id)->first();
+
+                if (!$approver) {
+                    throw new \Exception(
+                        "Tidak dapat menemukan approver untuk langkah '{$step->step_name}'. " .
+                        "Diperlukan user dengan role '{$step->target_role_slug}' di unit '{$targetUnit->name}'. " .
+                        "Silakan hubungi admin untuk menambahkan user dengan role tersebut."
+                    );
+                }
+                return $approver;
 
             default:
                 return null;

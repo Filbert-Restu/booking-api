@@ -90,8 +90,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{id}/approve', [DocumentController::class, 'approve']);  // Approve dokumen
         Route::post('/{id}/reject', [DocumentController::class, 'reject']);    // Reject dokumen
         Route::post('/{id}/revise', [DocumentController::class, 'revise']);    // Kembalikan untuk revisi
+
+        // Generate documents from templates
+        Route::post('/{id}/generate/executive-summary', [DocumentController::class, 'generateExecutiveSummary']);
+        Route::post('/{id}/generate/approval-sheet', [DocumentController::class, 'generateApprovalSheet']);
+
         // Serve stored document files (proposal, executive_summary, approval_sheet)
-        Route::get('/{id}/file/{type}', [DocumentController::class, 'file']);  // Example: /documents/123/file/proposal
+        Route::get('/{id}/file/{type}', [DocumentController::class, 'file'])->name('api.documents.file');  // Example: /documents/123/file/proposal
     });
 
     // Unit Routes
