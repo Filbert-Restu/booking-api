@@ -28,6 +28,7 @@ class AuthenticatedSessionController extends Controller
             'message' => 'Login successful',
             'token' => $token,
             'user' => $user,
+            'unit_category' => $user->unit ? $user->unit->category : null, // For workflow selection
         ]);
     }
 

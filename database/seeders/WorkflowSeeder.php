@@ -136,6 +136,9 @@ class WorkflowSeeder extends Seeder
         // Peminjam (Mahasiswa) - 2 sample
         User::create(['name' => 'Rudi Hartono', 'email' => 'mahasiswa1@student.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $rolePeminjam->id, 'unit_id' => $hmif->id]);
         User::create(['name' => 'Fitri Handayani', 'email' => 'mahasiswa2@student.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $rolePeminjam->id, 'unit_id' => $himasta->id]);
+        User::create(['name' => 'Siapa', 'email' => 'mahasiswa3@student.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $rolePeminjam->id, 'unit_id' => $bem->id]);
+        User::create(['name' => 'Siapa', 'email' => 'mahasiswa4@student.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $rolePeminjam->id, 'unit_id' => $vosc->id]);
+        User::create(['name' => 'Siapa', 'email' => 'mahasiswa5@student.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $rolePeminjam->id, 'unit_id' => $senat->id]);
 
         // === UKM USERS ===
         // Dosen Pendamping UKM (6)
