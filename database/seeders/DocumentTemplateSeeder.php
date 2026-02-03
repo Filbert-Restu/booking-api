@@ -35,31 +35,17 @@ class DocumentTemplateSeeder extends Seeder
         $templates = [
             [
                 'template_type' => 'executive_summary',
-                'template_name' => 'Executive Summary Template',
-                'file_path' => 'document-templates/executive_summary_template.docx',
+                'template_name' => 'Template Executive Summary 2026',
+                'file_path' => 'document-templates/1770096494_executive_summary_executive.docx',
                 'organization_type' => null,
-                'description' => 'Template untuk ringkasan eksekutif peminjaman tempat',
+                'description' => 'test',
             ],
             [
                 'template_type' => 'lembar_pengesahan',
                 'template_name' => 'Lembar Pengesahan HMD',
-                'file_path' => 'document-templates/lembar_pengesahan_hmd_template.docx',
-                'organization_type' => 'hmd',
-                'description' => 'Template lembar pengesahan untuk unit HMD',
-            ],
-            [
-                'template_type' => 'lembar_pengesahan',
-                'template_name' => 'Lembar Pengesahan BEM/UKM',
-                'file_path' => 'document-templates/lembar_pengesahan_bem_ukm_template.docx',
-                'organization_type' => 'bem_ukm',
-                'description' => 'Template lembar pengesahan untuk unit BEM dan UKM',
-            ],
-            [
-                'template_type' => 'lembar_pengesahan',
-                'template_name' => 'Lembar Pengesahan Senat',
-                'file_path' => 'document-templates/lembar_pengesahan_senat_template.docx',
-                'organization_type' => 'senat',
-                'description' => 'Template lembar pengesahan untuk unit Senat',
+                'file_path' => 'document-templates/1770096526_lembar_pengesahan_LEMBAR PENGESAHAN.docx',
+                'organization_type' => null,
+                'description' => 'test',
             ],
         ];
 
