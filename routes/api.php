@@ -53,6 +53,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Document Template Routes (Kemahasiswaan)
     Route::prefix('document-templates')->group(function () {
         Route::get('/active', [DocumentTemplateController::class, 'getActiveTemplates']); // Get active templates (HARUS DI ATAS /{id})
+        Route::get('/available-fields', [DocumentTemplateController::class, 'getAvailableFields']); // Get available placeholder fields
         Route::get('/test/libreoffice', [DocumentTemplateController::class, 'testLibreOffice']); // Test LibreOffice (HARUS DI ATAS /{id})
         Route::get('/', [DocumentTemplateController::class, 'index']);                    // List templates
         Route::get('/{id}', [DocumentTemplateController::class, 'show']);                 // Detail template
@@ -60,6 +61,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{id}/preview-pdf', [DocumentTemplateController::class, 'previewPdf']); // Preview as PDF
         Route::post('/', [DocumentTemplateController::class, 'store']);                   // Upload template
         Route::post('/{id}', [DocumentTemplateController::class, 'update']);              // Update template (form-data PUT workaround)
+        Route::put('/{id}/placeholder-metadata', [DocumentTemplateController::class, 'updatePlaceholderMetadata']); // Update placeholder metadata
         Route::patch('/{id}/activate', [DocumentTemplateController::class, 'activate']);  // Set as active
         Route::delete('/{id}', [DocumentTemplateController::class, 'destroy']);           // Delete template
     });

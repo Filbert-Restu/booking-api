@@ -8,6 +8,7 @@ use App\Models\Sign;
 use App\Models\User;
 use App\Models\WorkflowStep;
 use App\Models\Unit;
+use App\Services\DocumentGenerationService;
 use Illuminate\Support\Facades\DB;
 
 class WorkflowEngine
@@ -33,6 +34,40 @@ class WorkflowEngine
                     'user_id' => $actor->id,
                     'signature' => $signaturePath,
                     'signed_at' => now(),
+                ]);
+            }
+
+            // 2b. REGENERATE lembar pengesahan dengan TTD yang baru
+            try {
+                $document->load(['unit', 'workflow']);
+                $organizationType = strtolower($document->unit->category ?? 'hmd');
+
+                \Log::info("[WorkflowEngine] Regenerating approval sheet after approve", [
+                    'document_id' => $document->id,
+                    'approver' => $actor->name,
+                    'organization_type' => $organizationType
+                ]);
+
+                $generationService = app(DocumentGenerationService::class);
+                $filePath = $generationService->generateFromTemplate(
+                    $document,
+                    'lembar_pengesahan',
+                    $organizationType
+                );
+
+                // Update document with new file path
+                $document->update([
+                    'file_approval_sheet' => $filePath
+                ]);
+
+                \Log::info("[WorkflowEngine] ✅ Approval sheet regenerated successfully", [
+                    'file_path' => $filePath
+                ]);
+            } catch (\Exception $e) {
+                // Don't fail the approval if regeneration fails, just log
+                \Log::error("[WorkflowEngine] Failed to regenerate approval sheet", [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
                 ]);
             }
 

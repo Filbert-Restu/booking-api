@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\DocumentTemplate;
+use App\Services\PlaceholderExtractor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -77,14 +78,26 @@ class DocumentTemplateController extends Controller
             // Upload file
             $file = $request->file('file');
             $fileName = time() . '_' . $request->template_type . '_' . $file->getClientOriginalName();
-            $path = $file->storeAs('document-templates', $fileName);
+            $path = $file->storeAs('document-templates', $fileName, 'private');
 
             // Generate URL
-            $fileUrl = Storage::url($path);
+            $fileUrl = Storage::disk('private')->url($path);
 
             // Get next version number
             $latestVersion = DocumentTemplate::where('template_type', $request->template_type)
                                             ->max('version') ?? 0;
+
+            // Extract placeholders from DOCX
+            $fullPath = Storage::disk('private')->path($path);
+            $detectedPlaceholders = PlaceholderExtractor::extractFromDocx($fullPath);
+            $placeholderMetadata = PlaceholderExtractor::buildMetadata($detectedPlaceholders);
+
+            \Log::info('[TemplateUpload] Placeholders extracted', [
+                'template_name' => $request->template_name,
+                'total_placeholders' => count($detectedPlaceholders),
+                'available_count' => count(array_filter($placeholderMetadata, fn($m) => $m['available'])),
+                'placeholders' => $detectedPlaceholders
+            ]);
 
             // Create template
             $template = DocumentTemplate::create([
@@ -97,6 +110,8 @@ class DocumentTemplateController extends Controller
                 'is_active' => false, // Will be set later if requested
                 'uploaded_by' => $user->id,
                 'description' => $request->description,
+                'detected_placeholders' => $detectedPlaceholders,
+                'placeholder_metadata' => $placeholderMetadata,
             ]);
 
             // Set as active if requested
@@ -106,18 +121,29 @@ class DocumentTemplateController extends Controller
 
             DB::commit();
 
+            // Count unavailable placeholders
+            $unavailablePlaceholders = array_filter(
+                $placeholderMetadata,
+                fn($m) => !$m['available']
+            );
+
             return response()->json([
                 'success' => true,
                 'message' => 'Template berhasil diupload',
-                'data' => $template->load('uploader:id,name,email')
+                'data' => $template->load('uploader:id,name,email'),
+                'placeholders' => [
+                    'total' => count($detectedPlaceholders),
+                    'available' => count($detectedPlaceholders) - count($unavailablePlaceholders),
+                    'unavailable' => array_keys($unavailablePlaceholders),
+                ]
             ], 201);
 
         } catch (\Exception $e) {
             DB::rollBack();
 
             // Delete uploaded file if exists
-            if (isset($path) && Storage::exists($path)) {
-                Storage::delete($path);
+            if (isset($path) && Storage::disk('private')->exists($path)) {
+                Storage::disk('private')->delete($path);
             }
 
             return response()->json([
@@ -185,17 +211,30 @@ class DocumentTemplateController extends Controller
             // Update file if provided
             if ($request->hasFile('file')) {
                 // Delete old file
-                if ($template->file_path && Storage::exists($template->file_path)) {
-                    Storage::delete($template->file_path);
+                if ($template->file_path && Storage::disk('private')->exists($template->file_path)) {
+                    Storage::disk('private')->delete($template->file_path);
                 }
 
                 // Upload new file
                 $file = $request->file('file');
                 $fileName = time() . '_' . $template->template_type . '_' . $file->getClientOriginalName();
-                $path = $file->storeAs('document-templates', $fileName);
+                $path = $file->storeAs('document-templates', $fileName, 'private');
 
                 $updateData['file_path'] = $path;
-                $updateData['file_url'] = Storage::url($path);
+                $updateData['file_url'] = Storage::disk('private')->url($path);
+
+                // Extract placeholders from new file
+                $fullPath = Storage::disk('private')->path($path);
+                $detectedPlaceholders = PlaceholderExtractor::extractFromDocx($fullPath);
+                $placeholderMetadata = PlaceholderExtractor::buildMetadata($detectedPlaceholders);
+
+                $updateData['detected_placeholders'] = $detectedPlaceholders;
+                $updateData['placeholder_metadata'] = $placeholderMetadata;
+
+                \Log::info('[TemplateUpdate] Placeholders re-extracted', [
+                    'template_id' => $template->id,
+                    'total_placeholders' => count($detectedPlaceholders)
+                ]);
 
                 // Increment version
                 $updateData['version'] = $template->version + 1;
@@ -254,8 +293,8 @@ class DocumentTemplateController extends Controller
 
         try {
             // Delete file
-            if ($template->file_path && Storage::exists($template->file_path)) {
-                Storage::delete($template->file_path);
+            if ($template->file_path && Storage::disk('private')->exists($template->file_path)) {
+                Storage::disk('private')->delete($template->file_path);
             }
 
             $template->delete();
@@ -337,14 +376,15 @@ class DocumentTemplateController extends Controller
             ], 404);
         }
 
-        if (!Storage::exists($template->file_path)) {
+        // Use 'private' disk to access app/ folder (not app/private/)
+        if (!Storage::disk('private')->exists($template->file_path)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Template file not found'
             ], 404);
         }
 
-        return Storage::download($template->file_path, $template->template_name . '.docx');
+        return Storage::disk('private')->download($template->file_path, $template->template_name . '.docx');
     }
 
     /**
@@ -362,7 +402,8 @@ class DocumentTemplateController extends Controller
             ], 404);
         }
 
-        if (!Storage::exists($template->file_path)) {
+        // Use 'private' disk to access app/ folder (not app/private/)
+        if (!Storage::disk('private')->exists($template->file_path)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Template file not found'
@@ -370,7 +411,7 @@ class DocumentTemplateController extends Controller
         }
 
         try {
-            $docxPath = Storage::path($template->file_path);
+            $docxPath = Storage::disk('private')->path($template->file_path);
             $pdfPath = storage_path('app/temp/preview_' . $template->id . '.pdf');
 
             // Create temp directory if not exists
@@ -442,9 +483,18 @@ class DocumentTemplateController extends Controller
                 $outputDir = str_replace('/', '\\', $outputDir);
             }
 
-            // Build command - use quotes for paths with spaces
+            // Build command with enhanced PDF export options
+            // FilterData options:
+            // - Quality: 100 (highest quality)
+            // - ReduceImageResolution: false (preserve image quality)
+            // - MaxImageResolution: 300 (high DPI for images)
+            // - EmbedStandardFonts: true (embed fonts to prevent substitution)
+            // - ExportBookmarks: false (no bookmarks needed)
+            $filterData = 'Quality=100,ReduceImageResolution=false,MaxImageResolution=300,EmbedStandardFonts=true,ExportBookmarks=false';
+
             $command = '"' . $sofficeCommand . '"' .
-                      ' --headless --convert-to pdf' .
+                      ' --headless' .
+                      ' --convert-to pdf:writer_pdf_Export' .
                       ' --outdir "' . $outputDir . '"' .
                       ' "' . $docxPath . '"';
 
@@ -626,5 +676,90 @@ class DocumentTemplateController extends Controller
                 : 'Install LibreOffice: sudo apt-get install libreoffice');
 
         return response()->json($results);
+    }
+
+    /**
+     * Get all available fields for placeholder
+     * GET /api/document-templates/available-fields
+     */
+    public function getAvailableFields()
+    {
+        try {
+            $fields = PlaceholderExtractor::getAvailableFields();
+
+            // Group by category
+            $grouped = [];
+            foreach ($fields as $key => $field) {
+                $category = $field['category'] ?? 'other';
+                $grouped[$category][] = [
+                    'key' => $key,
+                    ...$field
+                ];
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'all' => $fields,
+                    'grouped' => $grouped,
+                    'total' => count($fields)
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get available fields: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update placeholder metadata for specific template
+     * PUT /api/document-templates/{id}/placeholder-metadata
+     */
+    public function updatePlaceholderMetadata(Request $request, $id)
+    {
+        $template = DocumentTemplate::find($id);
+
+        if (!$template) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Template not found'
+            ], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'metadata' => 'required|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $template->update([
+                'placeholder_metadata' => $request->metadata
+            ]);
+
+            \Log::info('[PlaceholderMetadata] Updated', [
+                'template_id' => $template->id,
+                'template_name' => $template->template_name
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Metadata placeholder berhasil diupdate',
+                'data' => $template
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update metadata: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

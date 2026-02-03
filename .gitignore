@@ -22,3 +22,9 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# LibreOffice Portable (if installed locally)
+/LibreOfficePortable/
+/libreoffice-portable/
+/LibreOffice_Portable.exe
+/libreoffice-portable.exe

@@ -14,6 +14,8 @@ class DocumentTemplate extends Model
     protected $casts = [
         'is_active' => 'boolean',
         'version' => 'integer',
+        'detected_placeholders' => 'array',
+        'placeholder_metadata' => 'array',
     ];
 
     protected $fillable = [
@@ -26,6 +28,8 @@ class DocumentTemplate extends Model
         'is_active',
         'uploaded_by',
         'description',
+        'detected_placeholders',
+        'placeholder_metadata',
     ];
 
     /**

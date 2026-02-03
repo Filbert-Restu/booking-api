@@ -10,10 +10,6 @@ use App\Services\DocumentGenerationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Dompdf\Dompdf;
-use Dompdf\Options;
-use PhpOffice\PhpWord\IOFactory;
-use PhpOffice\PhpWord\Settings;
 
 class DocumentController extends Controller
 {
@@ -218,6 +214,12 @@ class DocumentController extends Controller
      */
     public function store(Request $request)
     {
+        \Log::info('[DocumentController] store() called', [
+            'has_content' => $request->has('content'),
+            'content_value' => $request->input('content'),
+            'all_input' => $request->all(),
+        ]);
+
         $validated = $request->validate([
             'workflow_id' => 'required|exists:workflows,id',
             'title'       => 'required|string|max:255',
@@ -233,10 +235,35 @@ class DocumentController extends Controller
 
             // Proposal (Wajib PDF agar tidak berantakan saat preview, max 20MB)
             'proposal'          => 'nullable|file|mimes:pdf|max:20480',
+        ]);
 
-            // --- VALIDASI CONTENT FIELDS ---
-            'content.ketua_pelaksana_nim' => 'nullable|string|regex:/^\d{14}$/',
-            'content.ketua_pelaksana_hp' => 'nullable|string|regex:/^\d{12,13}$/',
+        // Validasi manual untuk specific content fields (opsional, tidak membuang field lain)
+        $content = $request->input('content', []);
+        if (isset($content['ketua_pelaksana_nim']) && !empty($content['ketua_pelaksana_nim'])) {
+            if (!preg_match('/^\d{14}$/', $content['ketua_pelaksana_nim'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'NIM harus 14 digit angka',
+                    'errors' => ['content.ketua_pelaksana_nim' => ['NIM harus 14 digit angka']],
+                ], 422);
+            }
+        }
+        if (isset($content['ketua_pelaksana_hp']) && !empty($content['ketua_pelaksana_hp'])) {
+            if (!preg_match('/^\d{12,13}$/', $content['ketua_pelaksana_hp'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'HP harus 12-13 digit angka',
+                    'errors' => ['content.ketua_pelaksana_hp' => ['HP harus 12-13 digit angka']],
+                ], 422);
+            }
+        }
+
+        // Use the raw content from request (includes ALL fields)
+        $validated['content'] = $content;
+
+        \Log::info('[DocumentController] Validated data', [
+            'content' => $validated['content'] ?? null,
+            'content_keys' => array_keys($validated['content'] ?? []),
         ]);
 
         $user = $request->user();
@@ -670,88 +697,164 @@ class DocumentController extends Controller
             return response()->file($fullPath);
         }
 
-        // Convert DOCX to PDF using PhpWord + Dompdf
+        // Convert DOCX to PDF using LibreOffice
         if ($fileExtension === 'docx') {
             try {
-                // Load DOCX file
-                $phpWord = IOFactory::load($fullPath);
-
-                // Convert to HTML
-                Settings::setOutputEscapingEnabled(true);
-                $htmlWriter = IOFactory::createWriter($phpWord, 'HTML');
-
-                // Save HTML to temp file
-                $tempDir = storage_path('app/temp');
-                if (!file_exists($tempDir)) {
-                    mkdir($tempDir, 0755, true);
-                }
-
-                $htmlPath = $tempDir . '/' . pathinfo($path, PATHINFO_FILENAME) . '_' . time() . '.html';
-                $htmlWriter->save($htmlPath);
-
-                // Read HTML content
-                $htmlContent = file_get_contents($htmlPath);
-
-                // Configure dompdf
-                $options = new Options();
-                $options->set('isHtml5ParserEnabled', true);
-                $options->set('isRemoteEnabled', true);
-                $options->set('defaultFont', 'Arial');
-
-                // Create dompdf instance
-                $dompdf = new Dompdf($options);
-
-                // Add some CSS for better formatting
-                $styledHtml = '
-                    <html>
-                    <head>
-                        <style>
-                            body { font-family: Arial, sans-serif; font-size: 12pt; }
-                            table { border-collapse: collapse; width: 100%; margin: 10px 0; }
-                            table, th, td { border: 1px solid #000; padding: 5px; }
-                            img { max-width: 100%; height: auto; }
-                            p { margin: 5px 0; }
-                        </style>
-                    </head>
-                    <body>' . $htmlContent . '</body>
-                    </html>
-                ';
-
-                // Load HTML content
-                $dompdf->loadHtml($styledHtml);
-
-                // Set paper size and orientation
-                $dompdf->setPaper('A4', 'portrait');
-
-                // Render PDF
-                $dompdf->render();
-
-                // Clean up HTML temp file
-                @unlink($htmlPath);
-
-                // Output PDF to browser
-                return response($dompdf->output(), 200)
-                    ->header('Content-Type', 'application/pdf')
-                    ->header('Content-Disposition', 'inline; filename="' . pathinfo($path, PATHINFO_FILENAME) . '.pdf"');
-
+                return $this->convertDocxToPdf($fullPath, $document->id, $type);
             } catch (\Exception $e) {
-                \Log::error('PDF conversion error', [
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString()
+                \Log::error('PDF conversion failed, falling back to DOCX download', [
+                    'error' => $e->getMessage()
                 ]);
 
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Terjadi kesalahan saat konversi PDF: ' . $e->getMessage()
-                ], 500);
+                // Fallback: download DOCX if conversion fails
+                return response()->download($fullPath, basename($path), [
+                    'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                ]);
             }
         }
 
-        // Unsupported file type for conversion
+        // Unsupported file type
         return response()->json([
             'success' => false,
-            'message' => 'File type tidak didukung untuk konversi PDF'
+            'message' => 'File type tidak didukung'
         ], 400);
+    }
+
+    /**
+     * Convert DOCX to PDF using LibreOffice
+     */
+    private function convertDocxToPdf(string $docxPath, int $documentId, string $type): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        \Log::info('[PDF Conversion] Starting conversion', [
+            'document_id' => $documentId,
+            'type' => $type,
+            'docx_path' => $docxPath,
+            'docx_exists' => file_exists($docxPath)
+        ]);
+
+        $pdfPath = storage_path('app/temp/doc_' . $documentId . '_' . $type . '_' . time() . '.pdf');
+
+        // Create temp directory if not exists
+        if (!file_exists(dirname($pdfPath))) {
+            mkdir(dirname($pdfPath), 0755, true);
+        }
+
+        // Detect OS for proper command
+        $isWindows = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
+
+        // Find LibreOffice executable
+        $sofficeCommand = null;
+
+        if ($isWindows) {
+            $possiblePaths = [
+                // Local portable installation in project folder (HIGHEST PRIORITY)
+                base_path('libreoffice-portable/App/libreoffice/program/soffice.exe'),
+                base_path('LibreOfficePortable/App/libreoffice/program/soffice.exe'),
+                // System-wide installations
+                'C:\\Program Files\\LibreOffice\\program\\soffice.exe',
+                'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe',
+                getenv('ProgramFiles') . '\\LibreOffice\\program\\soffice.exe',
+                getenv('ProgramFiles(x86)') . '\\LibreOffice\\program\\soffice.exe',
+            ];
+
+            foreach ($possiblePaths as $path) {
+                if (file_exists($path)) {
+                    $sofficeCommand = $path;
+                    break;
+                }
+            }
+
+            if (!$sofficeCommand) {
+                exec('where soffice 2>NUL', $output, $returnCode);
+                if ($returnCode === 0 && !empty($output)) {
+                    $sofficeCommand = trim($output[0]);
+                }
+            }
+        } else {
+            exec('which libreoffice 2>/dev/null', $output, $returnCode);
+            if ($returnCode === 0 && !empty($output)) {
+                $sofficeCommand = 'libreoffice';
+            } else {
+                exec('which soffice 2>/dev/null', $output2, $returnCode2);
+                if ($returnCode2 === 0 && !empty($output2)) {
+                    $sofficeCommand = 'soffice';
+                }
+            }
+        }
+
+        if (!$sofficeCommand) {
+            \Log::error('[PDF Conversion] LibreOffice not found');
+            throw new \Exception('LibreOffice not found');
+        }
+
+        \Log::info('[PDF Conversion] LibreOffice found', ['command' => $sofficeCommand]);
+
+        // Build conversion command
+        $outputDir = dirname($pdfPath);
+
+        if ($isWindows) {
+            $docxPath = str_replace('/', '\\', $docxPath);
+            $outputDir = str_replace('/', '\\', $outputDir);
+        }
+
+        $command = '"' . $sofficeCommand . '"' .
+                  ' --headless' .
+                  ' --convert-to pdf:writer_pdf_Export' .
+                  ' --outdir "' . $outputDir . '"' .
+                  ' "' . $docxPath . '"';
+
+        \Log::info('[PDF Conversion] Executing command', ['command' => $command]);
+
+        // Execute conversion
+        if ($isWindows) {
+            $fullCommand = 'cmd /c "' . $command . '"';
+            exec($fullCommand . ' 2>&1', $execOutput, $execReturn);
+        } else {
+            exec($command . ' 2>&1', $execOutput, $execReturn);
+        }
+
+        \Log::info('[PDF Conversion] Command executed', [
+            'return_code' => $execReturn,
+            'output' => $execOutput
+        ]);
+
+        // Check for generated PDF
+        $baseFilename = pathinfo($docxPath, PATHINFO_FILENAME);
+        $tempPdfPath = $outputDir . DIRECTORY_SEPARATOR . $baseFilename . '.pdf';
+
+        sleep(1); // Wait for file write
+
+        if (!file_exists($tempPdfPath)) {
+            \Log::error('[PDF Conversion] PDF file not created', [
+                'expected_path' => $pdfPath,
+                'temp_path' => $tempPdfPath,
+                'temp_exists' => file_exists($tempPdfPath)
+            ]);
+            throw new \Exception('PDF conversion failed');
+        }
+
+        // Move temp PDF to final location with unique name
+        if ($tempPdfPath !== $pdfPath) {
+            if (file_exists($pdfPath)) {
+                unlink($pdfPath);
+            }
+            rename($tempPdfPath, $pdfPath);
+        }
+
+        \Log::info('[PDF Conversion] Success', [
+            'pdf_path' => $pdfPath,
+            'file_size' => filesize($pdfPath)
+        ]);
+
+        if (!file_exists($pdfPath)) {
+            throw new \Exception('PDF conversion failed');
+        }
+
+        // Return PDF file
+        return response()->file($pdfPath, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . pathinfo($docxPath, PATHINFO_FILENAME) . '.pdf"',
+        ]);
     }
 
     /**
