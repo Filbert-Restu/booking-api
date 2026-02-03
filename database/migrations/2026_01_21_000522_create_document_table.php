@@ -17,7 +17,6 @@ return new class extends Migration
             $table->string('title'); // Perihal / Judul
 
             // Isi surat bisa text biasa atau JSON jika pakai editor blocks (e.g. Editor.js)
-            // Saya sarankan TEXT/LONGTEXT agar fleksibel
             $table->json('content')->nullable();
 
             // 1. Executive Summary
@@ -31,12 +30,11 @@ return new class extends Migration
 
             // --- B. CONTEXT (ASAL USUL) ---
             // PENTING: Surat ini milik Unit mana? (HIMA? BEM? UKM?)
-            // Ini kunci agar logic "Parent Scope" (Prodi/Fakultas) bekerja.
             $table->foreignId('unit_id')
                   ->constrained('units')
                   ->onDelete('cascade');
 
-            // Siapa pembuat surat ini pertama kali? (Sekretaris/Ketupel)
+            // Siapa pembuat surat ini? (Sekretaris/Ketupel)
             $table->foreignId('creator_id')
                   ->constrained('users');
 
@@ -51,14 +49,13 @@ return new class extends Migration
 
             // --- D. STATE (POSISI BOLA) ---
             // Siapa User yang sedang memegang surat ini SEKARANG?
-            // User inilah yang tombol "Approve" nya aktif di dashboard.
             $table->foreignId('current_holder_id')
                   ->nullable() // Nullable jika status FINAL/DRAFT belum submit
                   ->constrained('users');
 
             // --- E. STATUS UTAMA ---
             // Enum Strings: 'DRAFT', 'IN_PROGRESS', 'REVISION', 'APPROVED', 'REJECTED'
-            $table->string('status')->default('DRAFT')->index();
+            $table->enum('status', ['DRAFT', 'IN_PROGRESS', 'REVISION', 'APPROVED', 'REJECTED'])->default('DRAFT')->index();
 
             // Tanggal selesai (Diset saat status jadi APPROVED/REJECTED)
             $table->timestamp('completed_at')->nullable();

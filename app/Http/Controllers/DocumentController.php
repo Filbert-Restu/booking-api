@@ -4,14 +4,42 @@ namespace App\Http\Controllers;
 
 use App\Models\Document;
 use App\Models\DocumentLog;
+use App\Models\Sign;
 use App\Services\WorkflowEngine;
 use App\Services\DocumentGenerationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Dompdf\Dompdf;
+use Dompdf\Options;
+use PhpOffice\PhpWord\IOFactory;
+use PhpOffice\PhpWord\Settings;
 
 class DocumentController extends Controller
 {
+    /**
+     * Helper: apply search filter for 'q' param
+     */
+    protected function applySearchFilter($query, Request $request)
+    {
+        if (!$request->filled('q')) {
+            return;
+        }
+
+        $search = trim($request->q);
+
+        $query->where(function ($q) use ($search) {
+            $q->where('id', $search)
+              ->orWhere('title', 'like', "%{$search}%")
+
+              ->orWhereHas('creator', function ($q2) use ($search) {
+                  $q2->where('name', 'like', "%{$search}%");
+              })
+              ->orWhereHas('unit', function ($q2) use ($search) {
+                  $q2->where('name', 'like', "%{$search}%");
+              });
+        });
+    }
     protected $workflowEngine;
     protected $documentGenerationService;
 
@@ -57,6 +85,9 @@ class DocumentController extends Controller
                 $query->where('unit_id', $request->unit_id);
             }
 
+            // Tambahkan search filter
+            $this->applySearchFilter($query, $request);
+
             $allDocuments = $query->latest()->get();
 
             return response()->json([
@@ -82,6 +113,7 @@ class DocumentController extends Controller
             $myDocumentsQuery->where('workflow_id', $request->workflow_id);
         }
 
+        $this->applySearchFilter($myDocumentsQuery, $request);
         $myDocuments = $myDocumentsQuery->latest()->get();
 
         // Dokumen yang sedang menunggu action dari user ini
@@ -94,6 +126,7 @@ class DocumentController extends Controller
             $pendingDocumentsQuery->where('workflow_id', $request->workflow_id);
         }
 
+        $this->applySearchFilter($pendingDocumentsQuery, $request);
         $pendingDocuments = $pendingDocumentsQuery->latest()->get();
 
         // Dokumen yang sudah diproses oleh user ini (approved/rejected)
@@ -117,6 +150,7 @@ class DocumentController extends Controller
             $processedDocumentsQuery->where('workflow_id', $request->workflow_id);
         }
 
+        $this->applySearchFilter($processedDocumentsQuery, $request);
         $processedDocuments = $processedDocumentsQuery->latest()->get();
 
         return response()->json([
@@ -207,48 +241,54 @@ class DocumentController extends Controller
 
         $user = $request->user();
 
-        // 1. Handle Executive Summary (PRIVATE storage for security)
-        $pathExecutive = null;
-        if ($request->hasFile('executive_summary')) {
-            $pathExecutive = $request->file('executive_summary')->store('documents/executive_summaries', 'private');
+
+        $document = DB::transaction(function () use ($request, $validated, $user) {
+            // 1. Handle Executive Summary (PRIVATE storage for security)
+            $pathExecutive = null;
+            if ($request->hasFile('executive_summary')) {
+                $pathExecutive = $request->file('executive_summary')->store('documents/executive_summaries', 'private');
+            }
+
+            // 2. Handle Approval Sheet (PRIVATE storage for security)
+            $pathApproval = null;
+            if ($request->hasFile('approval_sheet')) {
+                $pathApproval = $request->file('approval_sheet')->store('documents/approval_sheets', 'private');
+            }
+
+            // 3. Handle Proposal (PRIVATE storage for security)
+            $pathProposal = null;
+            if ($request->hasFile('proposal')) {
+                $pathProposal = $request->file('proposal')->store('documents/proposals', 'private');
+            }
+
+            $doc = Document::create([
+                'workflow_id' => $validated['workflow_id'],
+                'title'       => $validated['title'],
+                'content'     => $validated['content'] ?? null,
+                'meta_data'   => $validated['meta_data'] ?? null,
+                'file_executive_summary' => $pathExecutive,
+                'file_approval_sheet'    => $pathApproval,
+                'file_proposal'          => $pathProposal,
+                'unit_id'            => $user->unit_id,
+                'creator_id'         => $user->id,
+                'status'             => 'DRAFT',
+                'current_step_order' => 1,
+            ]);
+            DocumentLog::create([
+                'document_id' => $doc->id,
+                'user_id'     => $user->id,
+                'action'      => 'CREATED',
+                'note'        => 'Dokumen dibuat',
+            ]);
+            return $doc;
+        });
+
+        if (!$document) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal membuat dokumen',
+            ], 500);
         }
-
-        // 2. Handle Approval Sheet (PRIVATE storage for security)
-        $pathApproval = null;
-        if ($request->hasFile('approval_sheet')) {
-            $pathApproval = $request->file('approval_sheet')->store('documents/approval_sheets', 'private');
-        }
-
-        // 3. Handle Proposal (PRIVATE storage for security)
-        $pathProposal = null;
-        if ($request->hasFile('proposal')) {
-            $pathProposal = $request->file('proposal')->store('documents/proposals', 'private');
-        }
-
-        $document = Document::create([
-            'workflow_id' => $validated['workflow_id'],
-            'title'       => $validated['title'],
-            'content'     => $validated['content'] ?? null,
-            'meta_data'   => $validated['meta_data'] ?? null,
-
-            // Masukkan path ke kolom baru
-            'file_executive_summary' => $pathExecutive,
-            'file_approval_sheet'    => $pathApproval,
-            'file_proposal'          => $pathProposal,
-
-            'unit_id'            => $user->unit_id,
-            'creator_id'         => $user->id,
-            'status'             => 'DRAFT',
-            'current_step_order' => 1,
-        ]);
-
-        // Log pembuatan dokumen
-        DocumentLog::create([
-            'document_id' => $document->id,
-            'user_id'     => $user->id,
-            'action'      => 'CREATED',
-            'note'        => 'Dokumen dibuat',
-        ]);
 
         return response()->json([
             'success' => true,
@@ -327,7 +367,6 @@ class DocumentController extends Controller
     {
         $validated = $request->validate([
             'note' => 'nullable|string',
-            'signature' => 'required|string', // Base64 string
         ]);
 
         $document = Document::with(['unit', 'workflow'])->findOrFail($id);
@@ -341,19 +380,20 @@ class DocumentController extends Controller
             ], 403);
         }
 
-        // Handle signature
         $signaturePath = null;
-        if ($validated['signature']) {
-            try {
-                $signatureImage = base64_decode(preg_replace('/^data:image\/\w+;base64,/', '', $validated['signature']));
-                $signaturePath = 'signatures/' . $document->id . '_' . $user->id . '_' . time() . '.png';
-                Storage::disk('private')->put($signaturePath, $signatureImage);
-            } catch (\Exception $e) {
+        $userRoleSlug = $user->role->slug ?? '';
+        $rolesWithoutSignature = ['sumber-daya', 'kemahasiswaan'];
+
+        if (!in_array($userRoleSlug, $rolesWithoutSignature)) {
+            // Signature required for other roles
+            $sign = Sign::where('user_id', $user->id)->latest()->first();
+            if (!$sign || !$sign->signature) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Gagal menyimpan tanda tangan: ' . $e->getMessage(),
-                ], 500);
+                    'message' => 'Anda harus mengupload tanda tangan terlebih dahulu sebelum approve dokumen'
+                ], 400);
             }
+            $signaturePath = $sign->signature; // Already stored in database
         }
 
         try {
@@ -361,7 +401,7 @@ class DocumentController extends Controller
                 $document,
                 $user,
                 $validated['note'] ?? null,
-                $signaturePath // Pass file path
+                $signaturePath // Pass file path from database
             );
 
             return response()->json([
@@ -370,60 +410,11 @@ class DocumentController extends Controller
                 'data' => $document->fresh(['currentHolder', 'creator', 'logs'])
             ]);
         } catch (\Exception $e) {
-            // If transaction fails, delete the created signature file
-            if ($signaturePath && Storage::disk('private')->exists($signaturePath)) {
-                Storage::disk('private')->delete($signaturePath);
-            }
-
             return response()->json([
                 'success' => false,
                 'message' => 'Error: ' . $e->getMessage()
             ], 500);
         }
-    }
-
-    /**
-     * Reject dokumen
-     */
-    public function reject(Request $request, $id)
-    {
-        $validated = $request->validate([
-            'note' => 'required|string',
-        ]);
-
-        $document = Document::findOrFail($id);
-        $user = $request->user();
-
-        // Validasi: Hanya current holder yang bisa reject
-        if ($document->current_holder_id !== $user->id) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Anda tidak memiliki akses untuk reject dokumen ini'
-            ], 403);
-        }
-
-        DB::transaction(function () use ($document, $user, $validated) {
-            // Update status dokumen
-            $document->update([
-                'status' => 'REJECTED',
-                'completed_at' => now(),
-            ]);
-
-            // Log rejection
-            DocumentLog::create([
-                'document_id' => $document->id,
-                'user_id' => $user->id,
-                'action' => 'REJECTED',
-                'note' => $validated['note'],
-                'step_snapshot' => $document->current_step_order,
-            ]);
-        });
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Dokumen berhasil ditolak',
-            'data' => $document->fresh(['creator', 'logs'])
-        ]);
     }
 
     /**
@@ -621,6 +612,176 @@ class DocumentController extends Controller
 
         // Serve file securely with authentication check
         return response()->file(Storage::disk('private')->path($path));
+    }
+
+    /**
+     * Convert DOCX to PDF and serve
+     * URL: GET /documents/{id}/file/{type}/pdf
+     */
+    public function filePdf(Request $request, $id, $type)
+    {
+        $user = $request->user();
+        $document = Document::findOrFail($id);
+
+        // Reuse access checks from file()
+        $isAdmin = $user->role->slug === 'admin';
+        $isCreator = $document->creator_id === $user->id;
+        $isCurrentHolder = $document->current_holder_id === $user->id;
+
+        $hasProcessed = DocumentLog::where('document_id', $document->id)
+            ->where('user_id', $user->id)
+            ->whereIn('action', ['APPROVED', 'REJECTED', 'SUBMITTED', 'REVISED'])
+            ->exists();
+
+        if (!$isAdmin && !$isCreator && !$isCurrentHolder && !$hasProcessed) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak memiliki akses untuk melihat dokumen ini'
+            ], 403);
+        }
+
+        // Map type to column name
+        $map = [
+            'proposal' => 'file_proposal',
+            'executive-summary' => 'file_executive_summary',
+            'approval-sheet' => 'file_approval_sheet',
+        ];
+
+        if (!isset($map[$type])) {
+            return response()->json(['success' => false, 'message' => 'Invalid file type'], 400);
+        }
+
+        $col = $map[$type];
+        $path = $document->{$col};
+        if (!$path) {
+            return response()->json(['success' => false, 'message' => 'File not available'], 404);
+        }
+
+        // Read from private disk (storage/app)
+        if (!Storage::disk('private')->exists($path)) {
+            return response()->json(['success' => false, 'message' => 'File not found on disk'], 404);
+        }
+
+        $fullPath = Storage::disk('private')->path($path);
+        $fileExtension = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
+
+        // If already PDF, serve directly
+        if ($fileExtension === 'pdf') {
+            return response()->file($fullPath);
+        }
+
+        // Convert DOCX to PDF using PhpWord + Dompdf
+        if ($fileExtension === 'docx') {
+            try {
+                // Load DOCX file
+                $phpWord = IOFactory::load($fullPath);
+
+                // Convert to HTML
+                Settings::setOutputEscapingEnabled(true);
+                $htmlWriter = IOFactory::createWriter($phpWord, 'HTML');
+
+                // Save HTML to temp file
+                $tempDir = storage_path('app/temp');
+                if (!file_exists($tempDir)) {
+                    mkdir($tempDir, 0755, true);
+                }
+
+                $htmlPath = $tempDir . '/' . pathinfo($path, PATHINFO_FILENAME) . '_' . time() . '.html';
+                $htmlWriter->save($htmlPath);
+
+                // Read HTML content
+                $htmlContent = file_get_contents($htmlPath);
+
+                // Configure dompdf
+                $options = new Options();
+                $options->set('isHtml5ParserEnabled', true);
+                $options->set('isRemoteEnabled', true);
+                $options->set('defaultFont', 'Arial');
+
+                // Create dompdf instance
+                $dompdf = new Dompdf($options);
+
+                // Add some CSS for better formatting
+                $styledHtml = '
+                    <html>
+                    <head>
+                        <style>
+                            body { font-family: Arial, sans-serif; font-size: 12pt; }
+                            table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+                            table, th, td { border: 1px solid #000; padding: 5px; }
+                            img { max-width: 100%; height: auto; }
+                            p { margin: 5px 0; }
+                        </style>
+                    </head>
+                    <body>' . $htmlContent . '</body>
+                    </html>
+                ';
+
+                // Load HTML content
+                $dompdf->loadHtml($styledHtml);
+
+                // Set paper size and orientation
+                $dompdf->setPaper('A4', 'portrait');
+
+                // Render PDF
+                $dompdf->render();
+
+                // Clean up HTML temp file
+                @unlink($htmlPath);
+
+                // Output PDF to browser
+                return response($dompdf->output(), 200)
+                    ->header('Content-Type', 'application/pdf')
+                    ->header('Content-Disposition', 'inline; filename="' . pathinfo($path, PATHINFO_FILENAME) . '.pdf"');
+
+            } catch (\Exception $e) {
+                \Log::error('PDF conversion error', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Terjadi kesalahan saat konversi PDF: ' . $e->getMessage()
+                ], 500);
+            }
+        }
+
+        // Unsupported file type for conversion
+        return response()->json([
+            'success' => false,
+            'message' => 'File type tidak didukung untuk konversi PDF'
+        ], 400);
+    }
+
+    /**
+     * Get LibreOffice executable path based on OS
+     */
+    private function getLibreOfficePath()
+    {
+        // Check for Windows
+        $windowsPaths = [
+            'C:\\Program Files\\LibreOffice\\program\\soffice.exe',
+            'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe',
+        ];
+
+        foreach ($windowsPaths as $path) {
+            if (file_exists($path)) {
+                return $path;
+            }
+        }
+
+        // Check for Linux/Mac (should be in PATH)
+        $unixCommands = ['libreoffice', 'soffice'];
+        foreach ($unixCommands as $cmd) {
+            exec("which $cmd 2>/dev/null", $output, $returnCode);
+            if ($returnCode === 0 && !empty($output[0])) {
+                return $output[0];
+            }
+        }
+
+        // Default fallback
+        return 'soffice';
     }
 
     /**

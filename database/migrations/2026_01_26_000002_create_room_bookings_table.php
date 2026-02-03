@@ -45,6 +45,7 @@ return new class extends Migration
                   ->nullable()
                   ->constrained('users')
                   ->nullOnDelete();
+
             $table->timestamp('approved_at')->nullable();
 
             // Rejection/cancellation reason

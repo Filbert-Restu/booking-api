@@ -21,7 +21,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
 
             // Jenis Aksi: CREATED, SUBMITTED, APPROVED, REJECTED, RETURNED, RESUBMITTED
-            $table->string('action');
+            $table->enum('action', ['CREATED', 'SUBMITTED', 'APPROVED', 'REJECTED', 'RETURNED', 'RESUBMITTED']);
 
             // Catatan/Note dari user (misal: "Tolong perbaiki tanggal")
             $table->text('note')->nullable();

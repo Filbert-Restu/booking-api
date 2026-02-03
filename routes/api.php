@@ -97,6 +97,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Serve stored document files (proposal, executive_summary, approval_sheet)
         Route::get('/{id}/file/{type}', [DocumentController::class, 'file'])->name('api.documents.file');  // Example: /documents/123/file/proposal
+        Route::get('/{id}/file/{type}/pdf', [DocumentController::class, 'filePdf'])->name('api.documents.file.pdf');  // Convert DOCX to PDF on-the-fly
     });
 
     // Unit Routes
