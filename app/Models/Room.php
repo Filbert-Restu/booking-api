@@ -66,10 +66,20 @@ class Room extends Model
         $startTime = strlen($startTime) === 5 ? $startTime . ':00' : $startTime;
         $endTime = strlen($endTime) === 5 ? $endTime . ':00' : $endTime;
 
-        // Check 1: RoomBookings with PENDING or APPROVED status
+        // Check 1: RoomBookings with APPROVED status OR recent PENDING holds
+        // PENDING bookings older than configured hold_days are ignored (released)
+        $holdDays = config('booking.hold_days', 14);
+        $threshold = now()->subDays($holdDays)->toDateTimeString();
+
         $query = $this->bookings()
             ->where('booking_date', $date)
-            ->whereIn('status', ['PENDING', 'APPROVED'])
+            ->where(function ($q) use ($threshold) {
+                $q->where('status', 'APPROVED')
+                  ->orWhere(function ($q2) use ($threshold) {
+                      $q2->where('status', 'PENDING')
+                         ->where('created_at', '>=', $threshold);
+                  });
+            })
             ->where('start_time', '<', $endTime)
             ->where('end_time', '>', $startTime);
 

@@ -8,6 +8,8 @@ use App\Models\Document;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 class RoomBookingController extends Controller
 {
@@ -95,91 +97,150 @@ class RoomBookingController extends Controller
     public function store(Request $request)
     {
         $user = $request->user();
+        $document = null; // Variabel penampung dokumen
 
-        $validator = Validator::make($request->all(), [
-            'document_id' => 'required|exists:documents,id',
-            'room_id' => 'required|exists:rooms,id',
-            'booking_date' => 'required|date|after_or_equal:today',
-            'start_time' => 'required|date_format:H:i',
-            'end_time' => 'required|date_format:H:i|after:start_time',
-            'purpose' => 'required|string',
-            'special_requirements' => 'nullable|string',
-            'expected_participants' => 'nullable|integer|min:1',
-        ]);
+        try {
+            // -----------------------------------------------------------
+            // 1. Validasi Input (Otomatis throw exception jika gagal)
+            // -----------------------------------------------------------
+            $validator = Validator::make($request->all(), [
+                'document_id' => 'required|exists:documents,id',
+                'room_id' => 'required|exists:rooms,id',
+                'booking_date' => 'required|date|after_or_equal:today',
+                'start_time' => 'required|date_format:H:i',
+                'end_time' => 'required|date_format:H:i|after:start_time',
+                'purpose' => 'required|string',
+                'special_requirements' => 'nullable|string',
+                'expected_participants' => 'nullable|integer|min:1',
+            ]);
 
-        if ($validator->fails()) {
+            if ($validator->fails()) {
+                // Kita throw Exception khusus agar ditangkap di catch bawah
+                throw new \Illuminate\Validation\ValidationException($validator);
+            }
+
+            // -----------------------------------------------------------
+            // 2. Load Dokumen (Untuk persiapan rollback)
+            // -----------------------------------------------------------
+            $document = Document::findOrFail($request->document_id);
+
+            // -----------------------------------------------------------
+            // 3. Validasi Business Logic (Throw Exception jika gagal)
+            // -----------------------------------------------------------
+
+            // Cek Tanggal & Hari Sabtu
+            try {
+                $bookingDate = Carbon::parse($request->booking_date);
+            } catch (\Exception $e) {
+                throw new \Exception('Tanggal peminjaman tidak valid', 422);
+            }
+
+            if (!$bookingDate->isSaturday()) {
+                throw new \Exception('Peminjaman hanya diperbolehkan pada hari Sabtu', 400);
+            }
+
+            // Cek Jam Operasional
+            $startTime = Carbon::createFromFormat('H:i', $request->start_time);
+            $endTime = Carbon::createFromFormat('H:i', $request->end_time);
+            $open = Carbon::createFromTime(9, 0);
+            $close = Carbon::createFromTime(17, 0);
+
+            if ($startTime->lt($open) || $endTime->gt($close) || !$endTime->gt($startTime)) {
+                throw new \Exception('Waktu peminjaman harus antara 09:00 - 17:00 dan waktu selesai harus valid', 400);
+            }
+
+            // Cek Akses Dokumen
+            if ($document->creator_id !== $user->id && $document->current_holder_id !== $user->id) {
+                throw new \Exception('Anda tidak memiliki akses ke dokumen ini', 403);
+            }
+
+            // Cek Double Booking Dokumen
+            $existingBooking = RoomBooking::where('document_id', $request->document_id)->first();
+            if ($existingBooking) {
+                // Kita sertakan data booking lama di exception (opsional, butuh custom handling jika ingin return data)
+                throw new \Exception('Dokumen ini sudah memiliki booking ruangan', 400);
+            }
+
+            // Cek Ketersediaan Ruangan
+            $room = Room::findOrFail($request->room_id);
+            $isAvailable = $room->isAvailable(
+                $request->booking_date,
+                $request->start_time,
+                $request->end_time,
+                null,
+                $request->document_id
+            );
+
+            if (!$isAvailable) {
+                throw new \Exception('Ruangan tidak tersedia pada waktu yang dipilih', 400);
+            }
+
+            // Cek Kapasitas
+            if ($room->capacity && $request->expected_participants) {
+                if ($request->expected_participants > $room->capacity) {
+                    throw new \Exception("Jumlah peserta melebihi kapasitas ruangan ({$room->capacity})", 400);
+                }
+            }
+
+            // -----------------------------------------------------------
+            // 4. Eksekusi Create Booking (Happy Path)
+            // -----------------------------------------------------------
+            $booking = RoomBooking::create([
+                'document_id' => $request->document_id,
+                'room_id' => $request->room_id,
+                'booked_by' => $user->id,
+                'booking_date' => $request->booking_date,
+                'start_time' => $request->start_time,
+                'end_time' => $request->end_time,
+                'purpose' => $request->purpose,
+                'special_requirements' => $request->special_requirements,
+                'expected_participants' => $request->expected_participants,
+                'status' => 'PENDING',
+            ]);
+
+            // Sukses! Return response
             return response()->json([
-                'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
+                'success' => true,
+                'message' => 'Booking ruangan berhasil dibuat',
+                'data' => $booking->load(['room', 'document', 'bookedBy']),
+            ], 201);
 
-        // Cek apakah user adalah creator atau terlibat dalam document
-        $document = Document::findOrFail($request->document_id);
-        if ($document->creator_id !== $user->id && $document->current_holder_id !== $user->id) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Anda tidak memiliki akses ke dokumen ini',
-            ], 403);
-        }
+        } catch (\Throwable $e) {
+            // ===========================================================
+            // AREA PENANGANAN ERROR TERPUSAT (Cukup satu kali tulis)
+            // ===========================================================
 
-        // Cek apakah sudah ada booking untuk document ini
-        $existingBooking = RoomBooking::where('document_id', $request->document_id)->first();
-        if ($existingBooking) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Dokumen ini sudah memiliki booking ruangan',
-                'data' => $existingBooking->load(['room']),
-            ], 400);
-        }
+            // 1. Lakukan Rollback Dokumen (Jika dokumen sudah ter-load)
+            // Logic ini akan jalan APAPUN errornya (Validasi, Room Penuh, Server Error, dll)
+            if ($document) {
+                $this->rollbackDocumentIfOwned($document, $user);
+            } elseif ($request->has('document_id')) {
+                // Fallback: Jika error terjadi saat validasi awal dan $document belum ter-set
+                $doc = Document::find($request->document_id);
+                if ($doc) $this->rollbackDocumentIfOwned($doc, $user);
+            }
 
-        // Cek ketersediaan ruangan (skip check untuk document_id yang sama di content)
-        $room = Room::findOrFail($request->room_id);
-        $isAvailable = $room->isAvailable(
-            $request->booking_date,
-            $request->start_time,
-            $request->end_time,
-            null, // excludeBookingId
-            $request->document_id // excludeDocumentId - ignore this document in availability check
-        );
+            // 2. Format Response Error
 
-        if (!$isAvailable) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Ruangan tidak tersedia pada waktu yang dipilih',
-            ], 400);
-        }
-
-        // Cek kapasitas ruangan vs expected participants
-        if ($room->capacity && $request->expected_participants) {
-            if ($request->expected_participants > $room->capacity) {
+            // Handle error validasi Laravel (422)
+            if ($e instanceof \Illuminate\Validation\ValidationException) {
                 return response()->json([
                     'success' => false,
-                    'message' => "Jumlah peserta ({$request->expected_participants}) melebihi kapasitas ruangan ({$room->capacity})",
-                ], 400);
+                    'message' => 'Validation failed',
+                    'errors' => $e->errors(),
+                ], 422);
             }
+
+            // Handle error logic yang kita buat sendiri (400, 403)
+            // Default ke 500 jika tidak ada status code
+            $statusCode = $e->getCode();
+            if ($statusCode < 100 || $statusCode > 599) $statusCode = 500;
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $statusCode);
         }
-
-        // Create booking
-        $booking = RoomBooking::create([
-            'document_id' => $request->document_id,
-            'room_id' => $request->room_id,
-            'booked_by' => $user->id,
-            'booking_date' => $request->booking_date,
-            'start_time' => $request->start_time,
-            'end_time' => $request->end_time,
-            'purpose' => $request->purpose,
-            'special_requirements' => $request->special_requirements,
-            'expected_participants' => $request->expected_participants,
-            'status' => 'PENDING',
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Booking ruangan berhasil dibuat',
-            'data' => $booking->load(['room', 'document', 'bookedBy']),
-        ], 201);
     }
 
     /**
@@ -493,5 +554,68 @@ class RoomBookingController extends Controller
             'success' => true,
             'data' => $stats,
         ]);
+    }
+
+    /**
+     * Rollback uploaded document files and delete the document record
+     * when the current user is the creator and the document is still DRAFT.
+     */
+    private function rollbackDocumentIfOwned(Document $document, $user)
+    {
+        try {
+            if (!$document) return;
+            if (!isset($user->id)) return;
+
+            // Only rollback if the requester is the creator and document is still DRAFT
+            if ($document->creator_id !== $user->id) {
+                \Log::info('[Rollback] Skip: request user is not creator', ['document_id' => $document->id ?? null, 'creator_id' => $document->creator_id ?? null, 'request_user_id' => $user->id ?? null]);
+                return;
+            }
+            if ($document->status !== 'DRAFT') {
+                \Log::info('[Rollback] Skip: document status is not DRAFT', ['document_id' => $document->id ?? null, 'status' => $document->status ?? null]);
+                return;
+            }
+
+            DB::transaction(function () use ($document) {
+                $cols = [
+                    'file_executive_summary',
+                    'file_approval_sheet',
+                    'file_proposal',
+                ];
+
+                foreach ($cols as $col) {
+                    $path = $document->{$col} ?? null;
+                    if ($path) {
+                        if (Storage::disk('private')->exists($path)) {
+                            Storage::disk('private')->delete($path);
+                            \Log::info('[Rollback] Deleted document file', ['document_id' => $document->id, 'col' => $col, 'path' => $path]);
+                        } else {
+                            \Log::info('[Rollback] File path not found on disk', ['document_id' => $document->id, 'col' => $col, 'path' => $path]);
+                        }
+                    } else {
+                        \Log::debug('[Rollback] No path set for column', ['document_id' => $document->id, 'col' => $col]);
+                    }
+                }
+
+                // Remove document logs explicitly to avoid FK issues
+                try {
+                    $document->logs()->delete();
+                } catch (\Exception $e) {
+                    \Log::warning('[Rollback] Failed to delete document logs', ['document_id' => $document->id, 'error' => $e->getMessage()]);
+                }
+
+                // Permanently remove the document record
+                try {
+                    $document->forceDelete();
+                    \Log::info('[Rollback] Document record permanently deleted after booking failure', ['document_id' => $document->id]);
+                } catch (\Exception $e) {
+                    \Log::warning('[Rollback] Failed to forceDelete document', ['document_id' => $document->id, 'error' => $e->getMessage()]);
+                    // As a fallback, perform soft delete
+                    try { $document->delete(); } catch (\Exception $_) {}
+                }
+            });
+        } catch (\Exception $e) {
+            \Log::warning('[Rollback] Failed to rollback document', ['document_id' => $document->id ?? null, 'error' => $e->getMessage()]);
+        }
     }
 }

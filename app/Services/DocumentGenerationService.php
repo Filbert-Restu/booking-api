@@ -299,7 +299,7 @@ class DocumentGenerationService
             'WAKTU_KEGIATAN' => $data['schedule'],
             'TEMPAT' => $data['location'],
             'ALAT' => $data['equipment'],
-            'KETUA_PANITIA' => $data['committee_head'],
+            'KETUA_PANITIA' => $data['ketua_pelaksana_nama'],
             'UNDANGAN' => $data['invitations'],
 
             // Ketua Pelaksana / Ketua Panitia (sama dengan ketua pelaksana)
