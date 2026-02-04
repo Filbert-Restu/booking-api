@@ -167,6 +167,16 @@ class DocumentGenerationService
         // Get content data (PRIORITY SOURCE - always available during flow)
         $content = $document->content ?? [];
 
+        // Handle case where content might be a string instead of array
+        if (!is_array($content)) {
+            \Log::warning('[prepareData] Content is not an array, converting...', [
+                'document_id' => $document->id,
+                'content_type' => gettype($content),
+                'content_value' => $content,
+            ]);
+            $content = [];
+        }
+
         \Log::info('[prepareData] Initial content from document', [
             'document_id' => $document->id,
             'content_keys' => array_keys($content),
@@ -198,6 +208,18 @@ class DocumentGenerationService
                 'room_id' => $roomId,
                 'room_code' => $room?->code,
                 'room_name' => $room?->name,
+            ]);
+        }
+
+        // Handle nested ketua object from frontend
+        if (isset($content['ketua']) && is_array($content['ketua'])) {
+            $content['ketua_pelaksana_nama'] = $content['ketua']['nama'] ?? $content['ketua_pelaksana_nama'] ?? '';
+            $content['ketua_pelaksana_nim'] = $content['ketua']['nim'] ?? $content['ketua_pelaksana_nim'] ?? '';
+            $content['ketua_pelaksana_hp'] = $content['ketua']['hp'] ?? $content['ketua_pelaksana_hp'] ?? '';
+            \Log::info('[prepareData] Extracted ketua data from nested object', [
+                'nama' => $content['ketua_pelaksana_nama'],
+                'nim' => $content['ketua_pelaksana_nim'],
+                'hp' => $content['ketua_pelaksana_hp']
             ]);
         }
 
@@ -299,7 +321,7 @@ class DocumentGenerationService
             'WAKTU_KEGIATAN' => $data['schedule'],
             'TEMPAT' => $data['location'],
             'ALAT' => $data['equipment'],
-            'KETUA_PANITIA' => $data['ketua_pelaksana_nama'],
+            'KETUA PANITIA' => $data['ketua_pelaksana_nama'],
             'UNDANGAN' => $data['invitations'],
 
             // Ketua Pelaksana / Ketua Panitia (sama dengan ketua pelaksana)
@@ -591,21 +613,17 @@ class DocumentGenerationService
                     $placeholders = $roleToPlaceholder[$step->target_role_slug];
                     $data[$placeholders['nama']] = $approver->name;
 
-                    // Use NIP for staff (dosen, wadek, kadep), NIM for students (ketua ormawa, senat)
-                    if (in_array($step->target_role_slug, ['ketua-ormawa', 'senat'])) {
-                        // For students, try to get NIM from user profile or use placeholder
-                        $nim = $approver->profile['nim'] ?? $approver->email ?? '____________________';
-                        $data[$placeholders['nip_nim']] = $nim;
-                    } else {
-                        // For staff, try to get NIP from user profile or use placeholder
-                        $nip = $approver->profile['nip'] ?? '____________________';
-                        $data[$placeholders['nip_nim']] = $nip;
-                    }
+                    // Use NIM/NIP from nim_nip field
+                    // nim_nip field contains either NIM (for students) or NIP (for staff)
+                    $nim_nip = $approver->nim_nip ?? '____________________';
+                    $data[$placeholders['nip_nim']] = $nim_nip;
 
                     \Log::info("[fillApproverData] Approver found", [
                         'step' => $step->step_name,
                         'role' => $step->target_role_slug,
-                        'approver' => $approver->name,
+                        'approver_id' => $approver->id,
+                        'approver_name' => $approver->name,
+                        'nim_nip' => $nim_nip,
                         'filled_nama' => $placeholders['nama'],
                         'filled_nip_nim' => $placeholders['nip_nim']
                     ]);

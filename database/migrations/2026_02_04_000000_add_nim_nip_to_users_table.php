@@ -13,10 +13,7 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             // NIM untuk mahasiswa
-            $table->string('nim')->nullable()->unique()->after('email');
-
-            // NIP untuk dosen dan tendik
-            $table->string('nip')->nullable()->unique()->after('nim');
+            $table->string('nim_nip')->nullable()->unique()->after('email');
         });
     }
 
@@ -26,7 +23,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn(['nim', 'nip']);
+            $table->dropColumn(['nim_nip']);
         });
     }
 };
