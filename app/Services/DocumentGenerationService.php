@@ -293,54 +293,124 @@ class DocumentGenerationService
         $this->fillApproverData($data, $document);
 
         // ============================================
-        // ADD UPPERCASE MAPPINGS FOR USER TEMPLATES
+        // ADD MULTIPLE CASE VARIANT MAPPINGS FOR USER TEMPLATES
         // ============================================
-        // User-uploaded templates might use UPPERCASE_WITH_UNDERSCORE format
-        // Map all lowercase fields to UPPERCASE equivalents
+        // User-uploaded templates might use different case formats:
+        // - UPPERCASE_WITH_UNDERSCORE: ${NAMA_KEGIATAN}
+        // - PascalCase: ${Nama_Kegiatan}
+        // - camelCase: ${namaKegiatan}
+        // - lowercase: ${nama_kegiatan}
         $uppercaseMappings = [
-            // Room
+            // Room - all variants
             'ROOM_CODE' => $data['room_code'],
             'ROOM_NAME' => $data['room_name'],
             'ROOM_CAPACITY' => $data['room_capacity'],
 
-            // Booking & Dates
-            'tanggal' => $data['booking_date'],
-            'TANGGAL' => $data['booking_date'],
+            // Booking & Dates - all variants
+            // Gunakan current_date (tanggal generate) untuk placeholder tanggal umum
+            'tanggal' => $data['current_date'],
+            'Tanggal' => $data['current_date'],
+            'TANGGAL' => $data['current_date'],
+            
+            // Tanggal peminjaman ruangan (spesifik)
+            'tanggal_peminjaman' => $data['booking_date'],
+            'Tanggal_Peminjaman' => $data['booking_date'],
+            'TANGGAL_PEMINJAMAN' => $data['booking_date'],
             'WAKTU_MULAI' => $data['start_time'],
+            'Waktu_Mulai' => $data['start_time'],
+            'waktu_mulai' => $data['start_time'],
             'WAKTU_SELESAI' => $data['end_time'],
+            'Waktu_Selesai' => $data['end_time'],
+            'waktu_selesai' => $data['end_time'],
             'WAKTU' => ($data['start_time'] && $data['end_time']) ?
                 "{$data['start_time']} - {$data['end_time']}" : '',
+            'Waktu' => ($data['start_time'] && $data['end_time']) ?
+                "{$data['start_time']} - {$data['end_time']}" : '',
 
-            // Event - Indonesian naming
+            // Event - all case variants
             'NAMA_KEGIATAN' => $data['event_name'],
+            'Nama_Kegiatan' => $data['event_name'],
+            'nama_kegiatan' => $data['event_name'],
+            'NamaKegiatan' => $data['event_name'],
+            
             'SIFAT' => $data['event_nature'],
+            'Sifat' => $data['event_nature'],
+            'sifat' => $data['event_nature'],
+            
             'BENTUK' => $data['event_form'],
+            'Bentuk' => $data['event_form'],
+            'bentuk' => $data['event_form'],
+            
             'TUJUAN' => $data['objectives'],
+            'Tujuan' => $data['objectives'],
+            'tujuan' => $data['objectives'],
+            
             'MANFAAT' => $data['benefits'],
+            'Manfaat' => $data['benefits'],
+            'manfaat' => $data['benefits'],
+            
             'SASARAN' => $data['target_audience'],
+            'Sasaran' => $data['target_audience'],
+            'sasaran' => $data['target_audience'],
+            
             'WAKTU_KEGIATAN' => $data['schedule'],
+            'Waktu_Kegiatan' => $data['schedule'],
+            'waktu_kegiatan' => $data['schedule'],
+            
             'TEMPAT' => $data['location'],
+            'Tempat' => $data['location'],
+            'tempat' => $data['location'],
+            
             'ALAT' => $data['equipment'],
-            'KETUA PANITIA' => $data['ketua_pelaksana_nama'],
+            'Alat' => $data['equipment'],
+            'alat' => $data['equipment'],
+            
+            'KETUA_PANITIA' => $data['ketua_pelaksana_nama'],
+            'Ketua_Panitia' => $data['ketua_pelaksana_nama'],
+            'ketua_panitia' => $data['ketua_pelaksana_nama'],
+            
             'UNDANGAN' => $data['invitations'],
+            'Undangan' => $data['invitations'],
+            'undangan' => $data['invitations'],
 
-            // Ketua Pelaksana / Ketua Panitia (sama dengan ketua pelaksana)
+            // Ketua Pelaksana - all variants
             'NAMA_KETUA' => $data['ketua_pelaksana_nama'],
+            'Nama_Ketua' => $data['ketua_pelaksana_nama'],
+            'nama_ketua' => $data['ketua_pelaksana_nama'],
+            
             'NIM_KETUA' => $data['ketua_pelaksana_nim'],
+            'Nim_Ketua' => $data['ketua_pelaksana_nim'],
+            'nim_ketua' => $data['ketua_pelaksana_nim'],
+            'NIM' => $data['ketua_pelaksana_nim'],
+            'Nim' => $data['ketua_pelaksana_nim'],
+            'nim' => $data['ketua_pelaksana_nim'],
+            
             'HP_KETUA' => $data['ketua_pelaksana_hp'],
+            'Hp_Ketua' => $data['ketua_pelaksana_hp'],
+            'hp_ketua' => $data['ketua_pelaksana_hp'],
+            
             'nama_ketuapanitia' => $data['ketua_pelaksana_nama'],
+            'Nama_KetuaPanitia' => $data['ketua_pelaksana_nama'],
             'nim_ketuapanitia' => $data['ketua_pelaksana_nim'],
+            'Nim_KetuaPanitia' => $data['ketua_pelaksana_nim'],
             // Note: ttd_ketuapanitia will be inserted as image, don't set as text
 
-            // Unit/Ormawa
+            // Unit/Ormawa - all variants
             'NAMA_ORMAWA' => $data['unit_name'],
+            'Nama_Ormawa' => $data['unit_name'],
+            'nama_ormawa' => $data['unit_name'],
+            
             'KODE_ORMAWA' => $data['unit_code'],
-            'NAMA_SINGKAT_ORMAWA' => $data['unit_code'], // Using code as short name
+            'Kode_Ormawa' => $data['unit_code'],
+            'kode_ormawa' => $data['unit_code'],
+            
+            'NAMA_SINGKAT_ORMAWA' => $data['unit_code'],
+            'Nama_Singkat_Ormawa' => $data['unit_code'],
 
-            // Note: Approver names, NIM/NIP filled by fillApproverData()
-            // Note: TTD placeholders are NOT filled with text here, will be replaced with images in insertSignatures()
-
-            'nama_departemen' => 'Statistika', // Default, bisa diganti sesuai unit
+            // Generic placeholders that might be used
+            'nama_departemen' => 'Statistika',
+            'Nama_Departemen' => 'Statistika',
+            'NAMA_DEPARTEMEN' => 'STATISTIKA',
         ];
 
         // Merge uppercase mappings into data
@@ -596,13 +666,28 @@ class DocumentGenerationService
 
         $steps = $document->workflow->steps()->orderBy('step_order')->get();
 
-        // Map role slugs to placeholder field names
+        // Map role slugs to placeholder field names (multiple case variants)
         $roleToPlaceholder = [
-            'ketua-ormawa' => ['nama' => 'nama_ketuaormawa', 'nip_nim' => 'nim_ketuaormawa'],
-            'dosen-pendamping' => ['nama' => 'nama_dosenpendamping', 'nip_nim' => 'nip_dosenpendamping'],
-            'senat' => ['nama' => 'nama_ketuasenat', 'nip_nim' => 'nim_ketuasenat'],
-            'wadek1' => ['nama' => 'nama_wadek1', 'nip_nim' => 'nip_wadek1'],
-            'ketua-departemen' => ['nama' => 'nama_ketuadepartemen', 'nip_nim' => 'nip_ketuadepartemen'],
+            'ketua-ormawa' => [
+                'nama' => ['nama_ketuaormawa', 'Nama_KetuaOrmawa', 'NAMA_KETUAORMAWA'],
+                'nip_nim' => ['nim_ketuaormawa', 'Nim_KetuaOrmawa', 'NIM_KETUAORMAWA', 'NIM']
+            ],
+            'dosen-pendamping' => [
+                'nama' => ['nama_dosenpendamping', 'Nama_DosenPendamping', 'NAMA_DOSENPENDAMPING'],
+                'nip_nim' => ['nip_dosenpendamping', 'Nip_DosenPendamping', 'NIP_DOSENPENDAMPING', 'NIP']
+            ],
+            'senat' => [
+                'nama' => ['nama_ketuasenat', 'Nama_KetuaSenat', 'NAMA_KETUASENAT'],
+                'nip_nim' => ['nim_ketuasenat', 'Nim_KetuaSenat', 'NIM_KETUASENAT', 'NIM']
+            ],
+            'wadek1' => [
+                'nama' => ['nama_wadek1', 'Nama_Wadek1', 'NAMA_WADEK1'],
+                'nip_nim' => ['nip_wadek1', 'Nip_Wadek1', 'NIP_WADEK1', 'NIP']
+            ],
+            'ketua-departemen' => [
+                'nama' => ['nama_ketuadepartemen', 'Nama_KetuaDepartemen', 'NAMA_KETUADEPARTEMEN'],
+                'nip_nim' => ['nip_ketuadepartemen', 'Nip_KetuaDepartemen', 'NIP_KETUADEPARTEMEN', 'NIP']
+            ],
         ];
 
         foreach ($steps as $step) {
@@ -611,12 +696,20 @@ class DocumentGenerationService
 
                 if ($approver && isset($roleToPlaceholder[$step->target_role_slug])) {
                     $placeholders = $roleToPlaceholder[$step->target_role_slug];
-                    $data[$placeholders['nama']] = $approver->name;
+                    
+                    // Fill all nama variants
+                    foreach ($placeholders['nama'] as $namaPlaceholder) {
+                        $data[$namaPlaceholder] = $approver->name;
+                    }
 
                     // Use NIM/NIP from nim_nip field
                     // nim_nip field contains either NIM (for students) or NIP (for staff)
                     $nim_nip = $approver->nim_nip ?? '____________________';
-                    $data[$placeholders['nip_nim']] = $nim_nip;
+                    
+                    // Fill all nip_nim variants
+                    foreach ($placeholders['nip_nim'] as $nipNimPlaceholder) {
+                        $data[$nipNimPlaceholder] = $nim_nip;
+                    }
 
                     \Log::info("[fillApproverData] Approver found", [
                         'step' => $step->step_name,
@@ -624,8 +717,8 @@ class DocumentGenerationService
                         'approver_id' => $approver->id,
                         'approver_name' => $approver->name,
                         'nim_nip' => $nim_nip,
-                        'filled_nama' => $placeholders['nama'],
-                        'filled_nip_nim' => $placeholders['nip_nim']
+                        'filled_nama_variants' => count($placeholders['nama']),
+                        'filled_nip_nim_variants' => count($placeholders['nip_nim'])
                     ]);
                 }
             } catch (\Exception $e) {
@@ -638,11 +731,15 @@ class DocumentGenerationService
 
         // Set defaults for any missing approver data
         foreach ($roleToPlaceholder as $role => $placeholders) {
-            if (!isset($data[$placeholders['nama']])) {
-                $data[$placeholders['nama']] = '____________________';
+            foreach ($placeholders['nama'] as $namaPlaceholder) {
+                if (!isset($data[$namaPlaceholder])) {
+                    $data[$namaPlaceholder] = '____________________';
+                }
             }
-            if (!isset($data[$placeholders['nip_nim']])) {
-                $data[$placeholders['nip_nim']] = '____________________';
+            foreach ($placeholders['nip_nim'] as $nipNimPlaceholder) {
+                if (!isset($data[$nipNimPlaceholder])) {
+                    $data[$nipNimPlaceholder] = '____________________';
+                }
             }
         }
 

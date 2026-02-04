@@ -128,6 +128,18 @@ class PlaceholderExtractor
                 'example' => '628123456789',
                 'category' => 'ketua_pelaksana'
             ],
+            'nim' => [
+                'label' => 'NIM (Generic)',
+                'source' => 'content.ketua_pelaksana_nim',
+                'example' => '12345678901234',
+                'category' => 'ketua_pelaksana'
+            ],
+            'nip' => [
+                'label' => 'NIP (Generic - untuk approver/dosen)',
+                'source' => 'approver.nim_nip',
+                'example' => '198012312010121001',
+                'category' => 'approver'
+            ],
 
             // Event data
             'event_name' => [

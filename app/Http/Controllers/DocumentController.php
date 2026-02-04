@@ -268,24 +268,64 @@ class DocumentController extends Controller
 
         $user = $request->user();
 
+        // ============================================
+        // PREVENT DUPLICATE RESERVATIONS
+        // ============================================
+        // Check if user already has a DRAFT document with same reservation data
+        $metaData = $validated['meta_data'] ?? [];
+        if (isset($metaData['step']) && $metaData['step'] === 'reservation') {
+            $existingDoc = Document::where('creator_id', $user->id)
+                ->where('status', 'DRAFT')
+                ->whereJsonContains('meta_data->step', 'reservation')
+                ->get()
+                ->first(function ($doc) use ($content) {
+                    $docContent = $doc->content ?? [];
+                    return isset($docContent['room_id']) &&
+                           isset($docContent['booking_date']) &&
+                           isset($docContent['start_time']) &&
+                           isset($docContent['end_time']) &&
+                           $docContent['room_id'] == ($content['room_id'] ?? null) &&
+                           $docContent['booking_date'] == ($content['booking_date'] ?? null) &&
+                           $docContent['start_time'] == ($content['start_time'] ?? null) &&
+                           $docContent['end_time'] == ($content['end_time'] ?? null);
+                });
+
+            if ($existingDoc) {
+                \Log::info('[DocumentController] Duplicate reservation detected, returning existing document', [
+                    'existing_doc_id' => $existingDoc->id,
+                    'room_id' => $content['room_id'] ?? null,
+                    'booking_date' => $content['booking_date'] ?? null,
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Reservasi sudah ada. Menggunakan dokumen yang sudah ada.',
+                    'data'    => $existingDoc->load('creator:id,name,email')
+                ], 200);
+            }
+        }
+
 
         $document = DB::transaction(function () use ($request, $validated, $user) {
             // 1. Handle Executive Summary (PRIVATE storage for security)
             $pathExecutive = null;
             if ($request->hasFile('executive_summary')) {
-                $pathExecutive = $request->file('executive_summary')->store('documents/executive_summaries', 'private');
+                $file = $request->file('executive_summary');
+                $pathExecutive = $file->store('documents/executive_summaries', 'private');
             }
 
             // 2. Handle Approval Sheet (PRIVATE storage for security)
             $pathApproval = null;
             if ($request->hasFile('approval_sheet')) {
-                $pathApproval = $request->file('approval_sheet')->store('documents/approval_sheets', 'private');
+                $file = $request->file('approval_sheet');
+                $pathApproval = $file->store('documents/approval_sheets', 'private');
             }
 
             // 3. Handle Proposal (PRIVATE storage for security)
             $pathProposal = null;
             if ($request->hasFile('proposal')) {
-                $pathProposal = $request->file('proposal')->store('documents/proposals', 'private');
+                $file = $request->file('proposal');
+                $pathProposal = $file->store('documents/proposals', 'private');
             }
 
             $doc = Document::create([
@@ -301,12 +341,14 @@ class DocumentController extends Controller
                 'status'             => 'DRAFT',
                 'current_step_order' => 1,
             ]);
+            
             DocumentLog::create([
                 'document_id' => $doc->id,
                 'user_id'     => $user->id,
                 'action'      => 'CREATED',
                 'note'        => 'Dokumen dibuat',
             ]);
+            
             return $doc;
         });
 
@@ -320,7 +362,7 @@ class DocumentController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Dokumen berhasil dibuat',
-            'data'    => $document->fresh(['creator'])
+            'data'    => $document->load('creator:id,name,email')
         ], 201);
     }
 

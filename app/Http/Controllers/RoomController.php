@@ -24,7 +24,8 @@ class RoomController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Room::query();
+        $query = Room::query()
+            ->select('id', 'name', 'code', 'capacity', 'location', 'building', 'floor', 'status', 'facilities', 'images', 'created_at', 'updated_at');
 
         // Filter by status (optional, jika tidak ada tampilkan semua)
         if ($request->has('status')) {
@@ -71,15 +72,19 @@ class RoomController extends Controller
      */
     public function show(Request $request, $id)
     {
-        $room = Room::findOrFail($id);
+        $room = Room::select('id', 'name', 'code', 'capacity', 'location', 'building', 'floor', 'status', 'facilities', 'images')
+            ->findOrFail($id);
 
         // Load upcoming bookings (7 hari ke depan)
         $startDate = Carbon::today();
         $endDate = Carbon::today()->addDays(7);
 
-        $upcomingBookings = RoomBooking::with(['document', 'bookedBy'])
+        $upcomingBookings = RoomBooking::with([
+                'document:id,title,status',
+                'bookedBy:id,name,email'
+            ])
+            ->select('id', 'document_id', 'room_id', 'booked_by', 'booking_date', 'start_time', 'end_time', 'purpose', 'status')
             ->where('room_id', $id)
-            ->withinHoldWindow()
             ->whereBetween('booking_date', [$startDate, $endDate])
             ->orderBy('booking_date')
             ->orderBy('start_time')
@@ -249,7 +254,6 @@ class RoomController extends Controller
             $conflicts = RoomBooking::with(['document', 'bookedBy'])
                 ->where('room_id', $id)
                 ->where('booking_date', $request->date)
-                ->withinHoldWindow()
                 ->where('start_time', '<', $request->end_time)
                 ->where('end_time', '>', $request->start_time)
                 ->get();
@@ -298,12 +302,16 @@ class RoomController extends Controller
             ], 422);
         }
 
-        $room = Room::findOrFail($id);
+        $room = Room::select('id', 'name', 'code', 'capacity', 'location')
+            ->findOrFail($id);
 
-        $bookings = RoomBooking::with(['document', 'bookedBy'])
+        $bookings = RoomBooking::with([
+                'document:id,title,status',
+                'bookedBy:id,name,email'
+            ])
+            ->select('id', 'document_id', 'room_id', 'booked_by', 'booking_date', 'start_time', 'end_time', 'purpose', 'status')
             ->where('room_id', $id)
             ->whereBetween('booking_date', [$request->start_date, $request->end_date])
-            ->withinHoldWindow()
             ->orderBy('booking_date')
             ->orderBy('start_time')
             ->get();
