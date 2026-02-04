@@ -81,7 +81,7 @@ class Document extends Model
     public function activeRoomBookings()
     {
         return $this->roomBookings()
-                    ->whereIn('status', ['PENDING', 'APPROVED']);
+                    ->withinHoldWindow();
     }
 
     /**
@@ -108,4 +108,3 @@ class Document extends Model
         return $query->whereIn('status', ['APPROVED', 'REJECTED']);
     }
 }
-

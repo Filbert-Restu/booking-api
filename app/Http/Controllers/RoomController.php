@@ -79,7 +79,7 @@ class RoomController extends Controller
 
         $upcomingBookings = RoomBooking::with(['document', 'bookedBy'])
             ->where('room_id', $id)
-            ->whereIn('status', ['PENDING', 'APPROVED'])
+            ->withinHoldWindow()
             ->whereBetween('booking_date', [$startDate, $endDate])
             ->orderBy('booking_date')
             ->orderBy('start_time')
@@ -222,7 +222,7 @@ class RoomController extends Controller
         $allBookings = RoomBooking::where('room_id', $id)
             ->where('booking_date', $request->date)
             ->get();
-        
+
         \Log::info('📋 All bookings for this room/date', [
             'count' => $allBookings->count(),
             'bookings' => $allBookings->map(fn($b) => [
@@ -249,11 +249,11 @@ class RoomController extends Controller
             $conflicts = RoomBooking::with(['document', 'bookedBy'])
                 ->where('room_id', $id)
                 ->where('booking_date', $request->date)
-                ->whereIn('status', ['PENDING', 'APPROVED'])
+                ->withinHoldWindow()
                 ->where('start_time', '<', $request->end_time)
                 ->where('end_time', '>', $request->start_time)
                 ->get();
-            
+
             \Log::info('⚠️ Conflicts found', [
                 'count' => $conflicts->count(),
                 'conflicts' => $conflicts->map(fn($b) => [
@@ -303,7 +303,7 @@ class RoomController extends Controller
         $bookings = RoomBooking::with(['document', 'bookedBy'])
             ->where('room_id', $id)
             ->whereBetween('booking_date', [$request->start_date, $request->end_date])
-            ->whereIn('status', ['PENDING', 'APPROVED'])
+            ->withinHoldWindow()
             ->orderBy('booking_date')
             ->orderBy('start_time')
             ->get();

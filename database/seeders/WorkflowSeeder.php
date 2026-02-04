@@ -95,10 +95,13 @@ class WorkflowSeeder extends Seeder
         // Sumber Daya
         User::create(['name' => 'Bapak Ahmad', 'email' => 'sumberdaya@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleSumberDaya->id, 'unit_id' => $fakultas->id]);
 
-        // Ketua Departemen (3 sample)
+        // Ketua Departemen (6 untuk semua departemen)
         User::create(['name' => 'Dr. Siti Rahmawati', 'email' => 'kadept.stat@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleKetuaDept->id, 'unit_id' => $deptStat->id]);
         User::create(['name' => 'Dr. Bambang Suryadi', 'email' => 'kadept.math@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleKetuaDept->id, 'unit_id' => $deptMath->id]);
         User::create(['name' => 'Dr. Agus Prasetyo', 'email' => 'kadept.if@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleKetuaDept->id, 'unit_id' => $deptIF->id]);
+        User::create(['name' => 'Dr. Wahyu Hidayat', 'email' => 'kadept.fis@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleKetuaDept->id, 'unit_id' => $deptFis->id]);
+        User::create(['name' => 'Dr. Nurul Huda', 'email' => 'kadept.kim@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleKetuaDept->id, 'unit_id' => $deptKim->id]);
+        User::create(['name' => 'Dr. Imam Santoso', 'email' => 'kadept.bio@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleKetuaDept->id, 'unit_id' => $deptBio->id]);
 
         // Dosen Pendamping untuk setiap HMD (6)
         User::create(['name' => 'Dr. Rina Kartika', 'email' => 'dospend.himasta@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleDosenPendamping->id, 'unit_id' => $himasta->id]);
