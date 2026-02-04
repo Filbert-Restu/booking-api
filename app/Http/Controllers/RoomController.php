@@ -306,7 +306,7 @@ class RoomController extends Controller
             ->findOrFail($id);
 
         $bookings = RoomBooking::with([
-                'document:id,title,status',
+                'document:id,title,status,content',
                 'bookedBy:id,name,email'
             ])
             ->select('id', 'document_id', 'room_id', 'booked_by', 'booking_date', 'start_time', 'end_time', 'purpose', 'status')
