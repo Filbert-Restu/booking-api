@@ -96,7 +96,7 @@ class DocumentController extends Controller
 
         // Untuk user biasa
         // Dokumen yang dibuat user
-        $myDocumentsQuery = Document::with(['workflow', 'currentHolder', 'creator', 'unit'])
+        $myDocumentsQuery = Document::with(['workflow', 'currentHolder.role', 'creator', 'unit'])
             ->where('creator_id', $user->id);
 
         // Filter by status untuk my_documents
@@ -111,6 +111,23 @@ class DocumentController extends Controller
 
         $this->applySearchFilter($myDocumentsQuery, $request);
         $myDocuments = $myDocumentsQuery->latest()->get();
+        
+        // Transform documents to include currentHolder with role
+        $myDocuments = $myDocuments->map(function ($doc) {
+            $docArray = $doc->toArray();
+            if ($doc->currentHolder) {
+                $docArray['currentHolder'] = [
+                    'id' => $doc->currentHolder->id,
+                    'name' => $doc->currentHolder->name,
+                    'email' => $doc->currentHolder->email,
+                    'role' => $doc->currentHolder->role ? [
+                        'id' => $doc->currentHolder->role->id,
+                        'name' => $doc->currentHolder->role->name,
+                    ] : null,
+                ];
+            }
+            return $docArray;
+        });
 
         // Dokumen yang sedang menunggu action dari user ini
         $pendingDocumentsQuery = Document::with(['workflow', 'creator', 'unit'])
