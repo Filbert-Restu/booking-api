@@ -47,7 +47,7 @@ class SignController extends Controller
             ], 401);
         }
 
-        $path = $request->file('signature')->store('signatures');
+        $path = $request->file('signature')->store('signatures', 'private');
 
         $sign = Sign::create([
             'user_id' => $user->id,
@@ -83,11 +83,11 @@ class SignController extends Controller
         }
 
         // Hapus file lama
-        if ($sign->signature && Storage::exists($sign->signature)) {
-            Storage::delete($sign->signature);
+        if ($sign->signature && Storage::disk('private')->exists($sign->signature)) {
+            Storage::disk('private')->delete($sign->signature);
         }
 
-        $path = $request->file('signature')->store('signatures');
+        $path = $request->file('signature')->store('signatures', 'private');
         $sign->update([
             'signature' => $path,
             'signed_at' => now(),
@@ -116,8 +116,8 @@ class SignController extends Controller
             ], 403);
         }
 
-        if ($sign->signature && Storage::exists($sign->signature)) {
-            Storage::delete($sign->signature);
+        if ($sign->signature && Storage::disk('private')->exists($sign->signature)) {
+            Storage::disk('private')->delete($sign->signature);
         }
         $sign->delete();
         return response()->json([
@@ -147,15 +147,20 @@ class SignController extends Controller
             ], 404);
         }
 
-        if (!Storage::exists($sign->signature)) {
+        if (!Storage::disk('private')->exists($sign->signature)) {
             return response()->json([
                 'success' => false,
                 'message' => 'File tidak ditemukan.'
             ], 404);
         }
 
-        $fullPath = Storage::path($sign->signature);
-        $mime = mime_content_type($fullPath) ?: 'application/octet-stream';
-        return response()->file($fullPath, ['Content-Type' => $mime]);
+        // Get file content from MinIO
+        $fileContent = Storage::disk('private')->get($sign->signature);
+        $mimeType = Storage::disk('private')->mimeType($sign->signature) ?: 'image/png';
+
+        return response($fileContent, 200, [
+            'Content-Type' => $mimeType,
+            'Cache-Control' => 'public, max-age=31536000',
+        ]);
     }
 }

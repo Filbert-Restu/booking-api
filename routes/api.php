@@ -144,6 +144,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Room Images
         Route::post('/{id}/upload-image', [RoomController::class, 'uploadImage']);      // Upload foto
         Route::delete('/{id}/images', [RoomController::class, 'deleteImage']);          // Hapus foto
+        Route::get('/{id}/image', [RoomController::class, 'serveImage'])->name('api.rooms.image'); // Serve image
     });
 
     // Room Booking Routes (Peminjaman Ruangan)

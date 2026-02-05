@@ -34,27 +34,43 @@ class DocumentGenerationService
             throw new \Exception("Template {$templateType} tidak ditemukan atau belum diaktifkan. Silakan upload dan aktifkan template terlebih dahulu.");
         }
 
-        // 2. Load template DOCX
-        // Use 'private' disk to get correct path (app/ instead of app/private/)
-        $templatePath = Storage::disk('private')->path($template->file_path);
-
-        \Log::info("Loading template file", [
+        // 2. Load template DOCX from MinIO
+        // Download template to temporary file for PhpWord processing
+        \Log::info("Loading template file from MinIO", [
             'template_id' => $template->id,
             'template_name' => $template->template_name,
             'file_path' => $template->file_path,
-            'full_path' => $templatePath
         ]);
 
-        if (!file_exists($templatePath)) {
-            \Log::error("Template file not found in storage", [
+        // Check if template exists in MinIO
+        if (!Storage::disk($this->getStorageDiskName())->exists($template->file_path)) {
+            \Log::error("Template file not found in MinIO", [
                 'template_id' => $template->id,
                 'file_path' => $template->file_path,
-                'full_path' => $templatePath
             ]);
             throw new \Exception("File template tidak ditemukan di storage. Template: {$template->template_name} (ID: {$template->id}). Path: {$template->file_path}. Silakan upload ulang template.");
         }
 
-        $templateProcessor = new TemplateProcessor($templatePath);
+        // Download template from MinIO to temporary file
+        $tempDir = storage_path('app/temp/templates');
+        if (!file_exists($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+
+        $tempFileName = 'template_' . $template->id . '_' . time() . '.docx';
+        $tempTemplatePath = $tempDir . '/' . $tempFileName;
+
+        // Download from MinIO
+        $templateContent = Storage::disk($this->getStorageDiskName())->get($template->file_path);
+        file_put_contents($tempTemplatePath, $templateContent);
+
+        \Log::info("Template downloaded to temp", [
+            'temp_path' => $tempTemplatePath,
+            'exists' => file_exists($tempTemplatePath),
+            'size' => filesize($tempTemplatePath)
+        ]);
+
+        $templateProcessor = new TemplateProcessor($tempTemplatePath);
 
         // 3. Get data untuk fill
         $data = $this->prepareData($document);
@@ -97,19 +113,46 @@ class DocumentGenerationService
         // 4b. Insert signature images if placeholders exist
         $this->insertSignatures($templateProcessor, $document);
 
-        // 5. Save generated document
+        // 5. Save generated document to temp first, then upload to MinIO
         $outputFileName = $this->generateFileName($document, $templateType);
-        $outputPath = storage_path('app/documents/' . $outputFileName);
+        $tempOutputPath = storage_path('app/temp/' . $outputFileName);
 
-        // Create directory if not exists
-        if (!file_exists(dirname($outputPath))) {
-            mkdir(dirname($outputPath), 0755, true);
+        // Create temp directory if not exists
+        if (!file_exists(dirname($tempOutputPath))) {
+            mkdir(dirname($tempOutputPath), 0755, true);
         }
 
-        $templateProcessor->saveAs($outputPath);
+        // Save to temp file
+        $templateProcessor->saveAs($tempOutputPath);
 
-        // 6. Return relative path
-        return 'documents/' . $outputFileName;
+        \Log::info('Generated document saved to temp', [
+            'temp_path' => $tempOutputPath,
+            'size' => filesize($tempOutputPath)
+        ]);
+
+        // 6. Upload to MinIO
+        $minioPath = 'documents/' . $outputFileName;
+        $fileContent = file_get_contents($tempOutputPath);
+        Storage::disk($this->getStorageDiskName())->put($minioPath, $fileContent);
+
+        \Log::info('Generated document uploaded to MinIO', [
+            'minio_path' => $minioPath,
+            'size' => strlen($fileContent)
+        ]);
+
+        // 7. Cleanup temporary files
+        if (isset($tempTemplatePath) && file_exists($tempTemplatePath)) {
+            unlink($tempTemplatePath);
+            \Log::debug('Temporary template file cleaned up', ['path' => $tempTemplatePath]);
+        }
+
+        if (file_exists($tempOutputPath)) {
+            unlink($tempOutputPath);
+            \Log::debug('Temporary output file cleaned up', ['path' => $tempOutputPath]);
+        }
+
+        // 8. Return relative path for MinIO
+        return $minioPath;
     }
 
     /**
@@ -257,31 +300,32 @@ class DocumentGenerationService
             'purpose' => $content['purpose'] ?? '',
 
             // Ketua Pelaksana
-            'ketua_pelaksana_nama' => $content['ketua_pelaksana_nama'] ?? '',
-            'ketua_pelaksana_nim' => $content['ketua_pelaksana_nim'] ?? '',
-            'ketua_pelaksana_hp' => $content['ketua_pelaksana_hp'] ?? '',
+            'nama_ketua_pelaksana' => $content['ketua_pelaksana_nama'] ?? '',
+            'nim_ketua_pelaksana' => $content['ketua_pelaksana_nim'] ?? '',
+            'hp_ketua_pelaksana' => $content['ketua_pelaksana_hp'] ?? '',
 
             // Event data
-            'event_name' => $content['event_name'] ?? '',
-            'event_nature' => $content['event_nature'] ?? '',
-            'event_form' => $content['event_form'] ?? '',
-            'objectives' => $content['objectives'] ?? '',
-            'benefits' => $content['benefits'] ?? '',
-            'target_audience' => $content['target_audience'] ?? '',
-            'schedule' => $content['schedule'] ?? '',
-            'location' => $content['location'] ?? '',
-            'equipment' => $content['equipment'] ?? '',
-            'committee_head' => $content['committee_head'] ?? '',
-            'invitations' => $content['invitations'] ?? '',
+            'nama_kegiatan' => $content['event_name'] ?? '',
+            'sifat' => $content['event_nature'] ?? '',
+            'bentuk' => $content['event_form'] ?? '',
+            'tujuan' => $content['objectives'] ?? '',
+            'manfaat' => $content['benefits'] ?? '',
+            'sasaran' => $content['target_audience'] ?? '',
+            'jadwal' => $content['schedule'] ?? '',
+            'tempat' => $content['location'] ?? '',
+            'alat' => $content['equipment'] ?? '',
+            'undangan' => $content['invitations'] ?? '',
 
             // User data
-            'user_name' => $document->creator->name ?? '',
-            'user_email' => $document->creator->email ?? '',
+            'nama_user' => $document->creator->name ?? '',
+            'email_user' => $document->creator->email ?? '',
 
             // Unit data
-            'unit_name' => $document->unit->name ?? '',
-            'unit_code' => $document->unit->code ?? '',
-            'unit_category' => $document->unit->category ?? '',
+            'nama_unit' => $document->unit->name ?? '',
+            // Alias used by older templates
+            'nama_ormawa' => $document->unit->name ?? '',
+            'kode_unit' => $document->unit->code ?? '',
+            'kategori_unit' => $document->unit->category ?? '',
 
             // Dates
             'created_date' => $this->formatDate($document->created_at),
@@ -291,6 +335,29 @@ class DocumentGenerationService
 
         // Lookup and fill approver data from workflow steps
         $this->fillApproverData($data, $document);
+
+        // Auto-generate simple case variants for all data fields so templates
+        // can request uppercase/lowercase without manually registering them.
+        // Examples generated per key `foo`: `FOO`, `foo_upper`, `foo_lower`.
+        $caseVariants = [];
+        foreach ($data as $k => $v) {
+            if (!is_scalar($v)) continue;
+            $str = (string) $v;
+            // Use multibyte-safe functions to support UTF-8 content
+            $upper = mb_strtoupper($str, 'UTF-8');
+            $lower = mb_strtolower($str, 'UTF-8');
+            $title = mb_convert_case($str, MB_CASE_TITLE, 'UTF-8');
+            $capitalized = ucfirst(mb_strtolower($str, 'UTF-8'));
+
+            $caseVariants[strtoupper($k)] = $upper;
+            $caseVariants[$k . '_upper'] = $upper;
+            $caseVariants[$k . '_lower'] = $lower;
+            // New variants: capitalized (first letter upper) and title case (each word capitalized)
+            $caseVariants[$k . '_capitalized'] = $capitalized;
+            $caseVariants[$k . '_title'] = $title;
+        }
+        // Merge generated variants but keep original $data keys preferred
+        $data = array_merge($data, $caseVariants);
 
         // ============================================
         // ADD MULTIPLE CASE VARIANT MAPPINGS FOR USER TEMPLATES
@@ -302,115 +369,69 @@ class DocumentGenerationService
         // - lowercase: ${nama_kegiatan}
         $uppercaseMappings = [
             // Room - all variants
-            'ROOM_CODE' => $data['room_code'],
-            'ROOM_NAME' => $data['room_name'],
-            'ROOM_CAPACITY' => $data['room_capacity'],
+            'ROOM_CODE' => $data['room_code'] ?? '',
+            'ROOM_NAME' => $data['room_name'] ?? '',
+            'ROOM_CAPACITY' => $data['room_capacity'] ?? '',
 
             // Booking & Dates - all variants
-            // Gunakan current_date (tanggal generate) untuk placeholder tanggal umum
-            'tanggal' => $data['current_date'],
-            'Tanggal' => $data['current_date'],
-            'TANGGAL' => $data['current_date'],
-            
+            'TANGGAL' => $data['current_date'] ?? '',
+
             // Tanggal peminjaman ruangan (spesifik)
-            'tanggal_peminjaman' => $data['booking_date'],
-            'Tanggal_Peminjaman' => $data['booking_date'],
-            'TANGGAL_PEMINJAMAN' => $data['booking_date'],
-            'WAKTU_MULAI' => $data['start_time'],
-            'Waktu_Mulai' => $data['start_time'],
-            'waktu_mulai' => $data['start_time'],
-            'WAKTU_SELESAI' => $data['end_time'],
-            'Waktu_Selesai' => $data['end_time'],
-            'waktu_selesai' => $data['end_time'],
-            'WAKTU' => ($data['start_time'] && $data['end_time']) ?
+            'TANGGAL_PEMINJAMAN' => $data['booking_date'] ?? '',
+            'WAKTU_MULAI' => $data['start_time'] ?? '',
+            'WAKTU_SELESAI' => $data['end_time'] ?? '',
+            'WAKTU' => (($data['start_time'] ?? '') && ($data['end_time'] ?? '')) ?
                 "{$data['start_time']} - {$data['end_time']}" : '',
-            'Waktu' => ($data['start_time'] && $data['end_time']) ?
+            'Waktu' => (($data['start_time'] ?? '') && ($data['end_time'] ?? '')) ?
                 "{$data['start_time']} - {$data['end_time']}" : '',
+
+            // Lowercase aliases so templates using ${waktu} or ${tanggal} work
+            'waktu' => (($data['start_time'] ?? '') && ($data['end_time'] ?? '')) ?
+                "{$data['start_time']} - {$data['end_time']}" : '',
+            'tanggal' => $data['current_date'] ?? '',
 
             // Event - all case variants
-            'NAMA_KEGIATAN' => $data['event_name'],
-            'Nama_Kegiatan' => $data['event_name'],
-            'nama_kegiatan' => $data['event_name'],
-            'NamaKegiatan' => $data['event_name'],
-            
-            'SIFAT' => $data['event_nature'],
-            'Sifat' => $data['event_nature'],
-            'sifat' => $data['event_nature'],
-            
-            'BENTUK' => $data['event_form'],
-            'Bentuk' => $data['event_form'],
-            'bentuk' => $data['event_form'],
-            
-            'TUJUAN' => $data['objectives'],
-            'Tujuan' => $data['objectives'],
-            'tujuan' => $data['objectives'],
-            
-            'MANFAAT' => $data['benefits'],
-            'Manfaat' => $data['benefits'],
-            'manfaat' => $data['benefits'],
-            
-            'SASARAN' => $data['target_audience'],
-            'Sasaran' => $data['target_audience'],
-            'sasaran' => $data['target_audience'],
-            
-            'WAKTU_KEGIATAN' => $data['schedule'],
-            'Waktu_Kegiatan' => $data['schedule'],
-            'waktu_kegiatan' => $data['schedule'],
-            
-            'TEMPAT' => $data['location'],
-            'Tempat' => $data['location'],
-            'tempat' => $data['location'],
-            
-            'ALAT' => $data['equipment'],
-            'Alat' => $data['equipment'],
-            'alat' => $data['equipment'],
-            
-            'KETUA_PANITIA' => $data['ketua_pelaksana_nama'],
-            'Ketua_Panitia' => $data['ketua_pelaksana_nama'],
-            'ketua_panitia' => $data['ketua_pelaksana_nama'],
-            
-            'UNDANGAN' => $data['invitations'],
-            'Undangan' => $data['invitations'],
-            'undangan' => $data['invitations'],
+            // Use the internal key `nama_kegiatan` (prepared earlier)
+            'NAMA_KEGIATAN' => $data['nama_kegiatan'] ?? '',
+
+            'SIFAT' => $data['event_nature'] ?? '',
+
+            'BENTUK' => $data['event_form'] ?? '',
+
+            'TUJUAN' => $data['objectives'] ?? '',
+
+            'MANFAAT' => $data['benefits'] ?? '',
+
+            'SASARAN' => $data['target_audience'] ?? '',
+
+            'WAKTU_KEGIATAN' => $data['schedule'] ?? '',
+
+            'TEMPAT' => $data['location'] ?? '',
+
+            'ALAT' => $data['equipment'] ?? '',
+
+            'UNDANGAN' => $data['invitations'] ?? '',
 
             // Ketua Pelaksana - all variants
-            'NAMA_KETUA' => $data['ketua_pelaksana_nama'],
-            'Nama_Ketua' => $data['ketua_pelaksana_nama'],
-            'nama_ketua' => $data['ketua_pelaksana_nama'],
-            
-            'NIM_KETUA' => $data['ketua_pelaksana_nim'],
-            'Nim_Ketua' => $data['ketua_pelaksana_nim'],
-            'nim_ketua' => $data['ketua_pelaksana_nim'],
-            'NIM' => $data['ketua_pelaksana_nim'],
-            'Nim' => $data['ketua_pelaksana_nim'],
-            'nim' => $data['ketua_pelaksana_nim'],
-            
-            'HP_KETUA' => $data['ketua_pelaksana_hp'],
-            'Hp_Ketua' => $data['ketua_pelaksana_hp'],
-            'hp_ketua' => $data['ketua_pelaksana_hp'],
-            
-            'nama_ketuapanitia' => $data['ketua_pelaksana_nama'],
-            'Nama_KetuaPanitia' => $data['ketua_pelaksana_nama'],
-            'nim_ketuapanitia' => $data['ketua_pelaksana_nim'],
-            'Nim_KetuaPanitia' => $data['ketua_pelaksana_nim'],
+            'NAMA_KETUA_PANITIA' => $data['ketua_pelaksana_nama'] ?? '',
+
+            'NIM_KETUA_PANITIA' => $data['ketua_pelaksana_nim'] ?? '',
+            'NIM_KETUA_PANITIA' => $data['ketua_pelaksana_nim'] ?? '',
+
+            'HP_KETUA_PANITIA' => $data['ketua_pelaksana_hp'] ?? '',
+
+            'NIM_KETUA_PANITIA' => $data['ketua_pelaksana_nim'] ?? '',
             // Note: ttd_ketuapanitia will be inserted as image, don't set as text
 
             // Unit/Ormawa - all variants
-            'NAMA_ORMAWA' => $data['unit_name'],
-            'Nama_Ormawa' => $data['unit_name'],
-            'nama_ormawa' => $data['unit_name'],
-            
-            'KODE_ORMAWA' => $data['unit_code'],
-            'Kode_Ormawa' => $data['unit_code'],
-            'kode_ormawa' => $data['unit_code'],
-            
-            'NAMA_SINGKAT_ORMAWA' => $data['unit_code'],
-            'Nama_Singkat_Ormawa' => $data['unit_code'],
+            // Prefer `nama_ormawa` (alias), fallback to `nama_unit`
+            'NAMA_ORMAWA' => $data['nama_ormawa'] ?? $data['nama_unit'] ?? '',
 
-            // Generic placeholders that might be used
-            'nama_departemen' => 'Statistika',
-            'Nama_Departemen' => 'Statistika',
-            'NAMA_DEPARTEMEN' => 'STATISTIKA',
+            'KODE_ORMAWA' => $data['unit_code'] ?? '',
+
+            'NAMA_SINGKAT_ORMAWA' => $data['unit_code'] ?? '',
+
+            'NAMA_DEPARTEMEN' => $data['unit_name'] ?? '',
         ];
 
         // Merge uppercase mappings into data
@@ -457,6 +478,15 @@ class DocumentGenerationService
     }
 
     /**
+     * Resolve storage disk name from config or environment
+     */
+    protected function getStorageDiskName(): string
+    {
+        // Prefer Laravel filesystem default, fallback to FILESYSTEM_DISK env, then 'private'
+        return config('filesystems.default') ?? env('FILESYSTEM_DISK', 'private');
+    }
+
+    /**
      * Validate user has uploaded signature before generating document
      */
     protected function validateUserSignature(Document $document): void
@@ -469,14 +499,55 @@ class DocumentGenerationService
             throw new \Exception("Anda belum mengupload tanda tangan. Silakan upload tanda tangan terlebih dahulu di menu 'Kelola Tanda Tangan' sebelum generate dokumen.");
         }
 
-        $signaturePath = Storage::path($creatorSignature->signature);
-        if (!file_exists($signaturePath)) {
-            \Log::error("[SIGNATURE] File not found", [
+        // Check if signature exists in configured storage disk
+        if (!Storage::disk($this->getStorageDiskName())->exists($creatorSignature->signature)) {
+            \Log::error("[SIGNATURE] File not found in MinIO", [
                 'signature_field' => $creatorSignature->signature,
-                'full_path' => $signaturePath,
                 'user_id' => $document->creator_id
             ]);
             throw new \Exception("File tanda tangan tidak ditemukan di storage. Silakan upload ulang tanda tangan Anda.");
+        }
+    }
+
+    /**
+     * Download signature from MinIO to temporary local file for PhpWord processing
+     */
+    protected function downloadSignatureToTemp(string $signaturePath): ?string
+    {
+        try {
+            if (!Storage::disk($this->getStorageDiskName())->exists($signaturePath)) {
+                \Log::warning("[SIGNATURE] File not found in storage", ['path' => $signaturePath, 'disk' => $this->getStorageDiskName()]);
+                return null;
+            }
+
+            // Create temp directory if not exists
+            $tempDir = storage_path('app/temp/signatures');
+            if (!file_exists($tempDir)) {
+                mkdir($tempDir, 0755, true);
+            }
+
+            // Generate unique temp filename
+            $extension = pathinfo($signaturePath, PATHINFO_EXTENSION);
+            $tempFileName = 'sig_' . md5($signaturePath . time()) . '.' . $extension;
+            $tempFilePath = $tempDir . '/' . $tempFileName;
+
+            // Download from MinIO to temp file
+            $content = Storage::disk($this->getStorageDiskName())->get($signaturePath);
+            file_put_contents($tempFilePath, $content);
+
+            \Log::debug("[SIGNATURE] Downloaded to temp", [
+                'minio_path' => $signaturePath,
+                'temp_path' => $tempFilePath,
+                'exists' => file_exists($tempFilePath)
+            ]);
+
+            return $tempFilePath;
+        } catch (\Exception $e) {
+            \Log::error("[SIGNATURE] Failed to download signature", [
+                'path' => $signaturePath,
+                'error' => $e->getMessage()
+            ]);
+            return null;
         }
     }
 
@@ -496,23 +567,33 @@ class DocumentGenerationService
                                  ->first();
 
         if ($creatorSignature && $creatorSignature->signature) {
-            $signaturePath = Storage::path($creatorSignature->signature);
+            // Download signature from MinIO to temp location
+            $tempSignaturePath = $this->downloadSignatureToTemp($creatorSignature->signature);
 
             \Log::info("[SIGNATURE] Creator signature found", [
                 'user_id' => $document->creator_id,
                 'signature_field' => $creatorSignature->signature,
-                'full_path' => $signaturePath,
-                'file_exists' => file_exists($signaturePath)
+                'temp_path' => $tempSignaturePath,
+                'file_exists' => $tempSignaturePath ? file_exists($tempSignaturePath) : false
             ]);
 
-            if (file_exists($signaturePath)) {
+            if ($tempSignaturePath && file_exists($tempSignaturePath)) {
                 try {
                     // Try multiple placeholder formats for ketua pelaksana/panitia
-                    $placeholders = ['signature_ketua_pelaksana', 'ttd_ketuapanitia', 'TTD_KETUA'];
+                    // Include underscore variants so templates using ${ttd_ketua_panitia}
+                    // or ${signature_ketua_panitia} are supported.
+                    $placeholders = [
+                        'signature_ketua_pelaksana',
+                        'signature_ketua_panitia',
+                        'ttd_ketuapanitia',
+                        'ttd_ketua_panitia',
+                        'TTD_KETUA',
+                        'TTD_KETUA_PANITIA',
+                    ];
                     foreach ($placeholders as $placeholder) {
                         try {
                             $templateProcessor->setImageValue($placeholder, [
-                                'path' => $signaturePath,
+                                'path' => $tempSignaturePath,
                                 'width' => 150,
                                 'height' => 75,
                                 'ratio' => false
@@ -531,9 +612,7 @@ class DocumentGenerationService
                     ]);
                 }
             } else {
-                \Log::error("[SIGNATURE] ❌ Creator signature file not found", [
-                    'path' => $signaturePath
-                ]);
+                \Log::error("[SIGNATURE] ❌ Creator signature file could not be downloaded");
             }
         } else {
             \Log::warning("[SIGNATURE] ⚠️ Creator signature not found in database", [
@@ -555,13 +634,13 @@ class DocumentGenerationService
 
             // Map role slugs to signature placeholder names
             $roleToSignaturePlaceholder = [
-                'ketua-ormawa' => ['ttd_ketuaormawa', 'signature_ketuaormawa'],
-                'dosen-pendamping' => ['ttd_dosenpendamping', 'signature_dosenpendamping'],
-                'senat' => ['ttd_ketuasenat', 'signature_ketuasenat'],
+                'ketua-ormawa' => ['ttd_ketua_ormawa', 'signature_ketua_ormawa'],
+                'dosen-pendamping' => ['ttd_dosen_pendamping', 'signature_dosen_pendamping'],
+                'senat' => ['ttd_ketua_senat', 'signature_ketua_senat'],
                 'wadek1' => ['ttd_wadek1', 'signature_wadek1'],
-                'ketua-departemen' => ['ttd_ketuadepartemen', 'signature_ketuadepartemen'],
+                'ketua-departemen' => ['ttd_ketua_departemen', 'signature_ketua_departemen'],
                 'kemahasiswaan' => ['ttd_kemahasiswaan', 'signature_kemahasiswaan'],
-                'sumber-daya' => ['ttd_sumberdaya', 'signature_sumberdaya'],
+                'sumber-daya' => ['ttd_sumber_daya', 'signature_sumber_daya'],
             ];
 
             $approverIndex = 1;
@@ -580,9 +659,10 @@ class DocumentGenerationService
                     ]);
 
                     if ($approverSignature && $approverSignature->signature) {
-                        $signaturePath = Storage::path($approverSignature->signature);
+                        // Download signature from MinIO to temp location
+                        $tempSignaturePath = $this->downloadSignatureToTemp($approverSignature->signature);
 
-                        if (file_exists($signaturePath)) {
+                        if ($tempSignaturePath && file_exists($tempSignaturePath)) {
                             // Try role-specific placeholders first
                             $placeholders = [];
                             if ($roleSlug && isset($roleToSignaturePlaceholder[$roleSlug])) {
@@ -596,7 +676,7 @@ class DocumentGenerationService
                             foreach ($placeholders as $placeholder) {
                                 try {
                                     $templateProcessor->setImageValue($placeholder, [
-                                        'path' => $signaturePath,
+                                        'path' => $tempSignaturePath,
                                         'width' => 100,
                                         'height' => 50,
                                         'ratio' => false
@@ -623,8 +703,9 @@ class DocumentGenerationService
                                 ]);
                             }
                         } else {
-                            \Log::warning("[SIGNATURE] ⚠️ Approver signature file not found", [
-                                'path' => $signaturePath
+                            \Log::warning("[SIGNATURE] ⚠️ Approver signature file could not be downloaded", [
+                                'user' => $log->user->name,
+                                'signature_path' => $approverSignature->signature
                             ]);
                         }
                     } else {
@@ -669,24 +750,24 @@ class DocumentGenerationService
         // Map role slugs to placeholder field names (multiple case variants)
         $roleToPlaceholder = [
             'ketua-ormawa' => [
-                'nama' => ['nama_ketuaormawa', 'Nama_KetuaOrmawa', 'NAMA_KETUAORMAWA'],
-                'nip_nim' => ['nim_ketuaormawa', 'Nim_KetuaOrmawa', 'NIM_KETUAORMAWA', 'NIM']
+                'nama' => ['nama_ketua_ormawa', 'NAMA_KETUA_ORMAWA'],
+                'nip_nim' => ['nim_ketua_ormawa', 'NIM_KETUA_ORMAWA', 'NIM']
             ],
             'dosen-pendamping' => [
-                'nama' => ['nama_dosenpendamping', 'Nama_DosenPendamping', 'NAMA_DOSENPENDAMPING'],
-                'nip_nim' => ['nip_dosenpendamping', 'Nip_DosenPendamping', 'NIP_DOSENPENDAMPING', 'NIP']
+                'nama' => ['nama_dosen_pendamping', 'NAMA_DOSEN_PENDAMPING'],
+                'nip_nim' => ['nip_dosen_pendamping', 'NIP_DOSEN_PENDAMPING', 'NIP']
             ],
             'senat' => [
-                'nama' => ['nama_ketuasenat', 'Nama_KetuaSenat', 'NAMA_KETUASENAT'],
-                'nip_nim' => ['nim_ketuasenat', 'Nim_KetuaSenat', 'NIM_KETUASENAT', 'NIM']
+                'nama' => ['nama_ketua_senat', 'NAMA_KETUA_SENAT'],
+                'nip_nim' => ['nim_ketua_senat', 'NIM_KETUA_SENAT', 'NIM']
             ],
             'wadek1' => [
-                'nama' => ['nama_wadek1', 'Nama_Wadek1', 'NAMA_WADEK1'],
-                'nip_nim' => ['nip_wadek1', 'Nip_Wadek1', 'NIP_WADEK1', 'NIP']
+                'nama' => ['nama_wadek1', 'NAMA_WADEK1'],
+                'nip_nim' => ['nip_wadek1', 'NIP_WADEK1', 'NIP']
             ],
             'ketua-departemen' => [
-                'nama' => ['nama_ketuadepartemen', 'Nama_KetuaDepartemen', 'NAMA_KETUADEPARTEMEN'],
-                'nip_nim' => ['nip_ketuadepartemen', 'Nip_KetuaDepartemen', 'NIP_KETUADEPARTEMEN', 'NIP']
+                'nama' => ['nama_ketua_departemen', 'NAMA_KETUA_DEPARTEMEN'],
+                'nip_nim' => ['nip_ketua_departemen', 'NIP_KETUA_DEPARTEMEN', 'NIP']
             ],
         ];
 
@@ -696,7 +777,7 @@ class DocumentGenerationService
 
                 if ($approver && isset($roleToPlaceholder[$step->target_role_slug])) {
                     $placeholders = $roleToPlaceholder[$step->target_role_slug];
-                    
+
                     // Fill all nama variants
                     foreach ($placeholders['nama'] as $namaPlaceholder) {
                         $data[$namaPlaceholder] = $approver->name;
@@ -705,7 +786,7 @@ class DocumentGenerationService
                     // Use NIM/NIP from nim_nip field
                     // nim_nip field contains either NIM (for students) or NIP (for staff)
                     $nim_nip = $approver->nim_nip ?? '____________________';
-                    
+
                     // Fill all nip_nim variants
                     foreach ($placeholders['nip_nim'] as $nipNimPlaceholder) {
                         $data[$nipNimPlaceholder] = $nim_nip;

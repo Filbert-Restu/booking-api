@@ -350,7 +350,7 @@ class RoomController extends Controller
         $room = Room::findOrFail($id);
 
         // Upload file
-        $path = $request->file('image')->store('rooms', 'public');
+        $path = $request->file('image')->store('rooms', 'private');
 
         // Tambahkan ke array images
         $images = $room->images ?? [];
@@ -363,7 +363,7 @@ class RoomController extends Controller
             'message' => 'Foto berhasil diupload',
             'data' => [
                 'path' => $path,
-                'url' => Storage::url($path),
+                'url' => route('api.rooms.image', ['id' => $room->id, 'path' => urlencode($path)]),
                 'all_images' => $room->images,
             ],
         ]);
@@ -395,8 +395,8 @@ class RoomController extends Controller
         $pathToDelete = $request->path;
 
         // Hapus dari storage
-        if (Storage::disk('public')->exists($pathToDelete)) {
-            Storage::disk('public')->delete($pathToDelete);
+        if (Storage::disk('private')->exists($pathToDelete)) {
+            Storage::disk('private')->delete($pathToDelete);
         }
 
         // Hapus dari array
@@ -413,6 +413,54 @@ class RoomController extends Controller
             'data' => [
                 'all_images' => $room->images,
             ],
+        ]);
+    }
+
+    /**
+     * Serve room image from private storage
+     *
+     * GET /rooms/{id}/image?path=rooms/xxx.jpg
+     */
+    public function serveImage(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'path' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $room = Room::findOrFail($id);
+        $path = $request->path;
+
+        // Verify path belongs to this room
+        if (!in_array($path, $room->images ?? [])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Image not found in room',
+            ], 404);
+        }
+
+        // Check if file exists in private storage
+        if (!Storage::disk('private')->exists($path)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'File not found in storage',
+            ], 404);
+        }
+
+        // Serve file from MinIO
+        $fileContent = Storage::disk('private')->get($path);
+        $mimeType = Storage::disk('private')->mimeType($path) ?: 'image/jpeg';
+
+        return response($fileContent, 200, [
+            'Content-Type' => $mimeType,
+            'Cache-Control' => 'public, max-age=31536000',
         ]);
     }
 }

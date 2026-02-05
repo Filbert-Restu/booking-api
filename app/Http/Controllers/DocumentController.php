@@ -111,7 +111,7 @@ class DocumentController extends Controller
 
         $this->applySearchFilter($myDocumentsQuery, $request);
         $myDocuments = $myDocumentsQuery->latest()->get();
-        
+
         // Transform documents to include currentHolder with role
         $myDocuments = $myDocuments->map(function ($doc) {
             $docArray = $doc->toArray();
@@ -358,14 +358,14 @@ class DocumentController extends Controller
                 'status'             => 'DRAFT',
                 'current_step_order' => 1,
             ]);
-            
+
             DocumentLog::create([
                 'document_id' => $doc->id,
                 'user_id'     => $user->id,
                 'action'      => 'CREATED',
                 'note'        => 'Dokumen dibuat',
             ]);
-            
+
             return $doc;
         });
 
@@ -691,13 +691,21 @@ class DocumentController extends Controller
             return response()->json(['success' => false, 'message' => 'File not available'], 404);
         }
 
-        // Read from private disk (storage/app)
+        // Read from private disk (MinIO)
         if (!Storage::disk('private')->exists($path)) {
             return response()->json(['success' => false, 'message' => 'File not found on disk'], 404);
         }
 
-        // Serve file securely with authentication check
-        return response()->file(Storage::disk('private')->path($path));
+        // Get file content and mime type from MinIO
+        $fileContent = Storage::disk('private')->get($path);
+        $mimeType = Storage::disk('private')->mimeType($path);
+        $fileName = basename($path);
+
+        return response($fileContent, 200, [
+            'Content-Type' => $mimeType,
+            'Content-Disposition' => 'inline; filename="' . $fileName . '"',
+            'Cache-Control' => 'public, max-age=3600',
+        ]);
     }
 
     /**
@@ -743,31 +751,51 @@ class DocumentController extends Controller
             return response()->json(['success' => false, 'message' => 'File not available'], 404);
         }
 
-        // Read from private disk (storage/app)
+        // Read from private disk (MinIO)
         if (!Storage::disk('private')->exists($path)) {
             return response()->json(['success' => false, 'message' => 'File not found on disk'], 404);
         }
 
-        $fullPath = Storage::disk('private')->path($path);
-        $fileExtension = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
+        $fileExtension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
 
-        // If already PDF, serve directly
+        // If already PDF, serve directly from MinIO
         if ($fileExtension === 'pdf') {
-            return response()->file($fullPath);
+            $fileContent = Storage::disk('private')->get($path);
+            return response($fileContent, 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline',
+                'Cache-Control' => 'public, max-age=3600',
+            ]);
         }
 
         // Convert DOCX to PDF using LibreOffice
         if ($fileExtension === 'docx') {
             try {
-                return $this->convertDocxToPdf($fullPath, $document->id, $type);
+                // Download DOCX from MinIO to temp location for conversion
+                $tempDocxPath = storage_path('app/temp/docx_' . $document->id . '_' . $type . '_' . time() . '.docx');
+                if (!file_exists(dirname($tempDocxPath))) {
+                    mkdir(dirname($tempDocxPath), 0755, true);
+                }
+                file_put_contents($tempDocxPath, Storage::disk('private')->get($path));
+
+                try {
+                    return $this->convertDocxToPdf($tempDocxPath, $document->id, $type);
+                } finally {
+                    // Cleanup temp file
+                    if (file_exists($tempDocxPath)) {
+                        unlink($tempDocxPath);
+                    }
+                }
             } catch (\Exception $e) {
                 \Log::error('PDF conversion failed, falling back to DOCX download', [
                     'error' => $e->getMessage()
                 ]);
 
                 // Fallback: download DOCX if conversion fails
-                return response()->download($fullPath, basename($path), [
-                    'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                $fileContent = Storage::disk('private')->get($path);
+                return response($fileContent, 200, [
+                    'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'Content-Disposition' => 'attachment; filename="' . basename($path) . '"',
                 ]);
             }
         }
