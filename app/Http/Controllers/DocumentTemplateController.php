@@ -411,52 +411,39 @@ class DocumentTemplateController extends Controller
         }
 
         try {
-            $docxPath = Storage::disk('private')->path($template->file_path);
-            $pdfPath = storage_path('app/temp/preview_' . $template->id . '.pdf');
-
             // Create temp directory if not exists
-            if (!file_exists(dirname($pdfPath))) {
-                mkdir(dirname($pdfPath), 0755, true);
+            $tempDir = storage_path('app/temp');
+            if (!file_exists($tempDir)) {
+                mkdir($tempDir, 0755, true);
             }
+
+            // Download file from MinIO/S3 to temp folder
+            $tempDocxPath = $tempDir . DIRECTORY_SEPARATOR . 'temp_' . $template->id . '.docx';
+            $fileContents = Storage::disk('private')->get($template->file_path);
+            file_put_contents($tempDocxPath, $fileContents);
+            
+            $docxPath = $tempDocxPath;
+            $pdfPath = $tempDir . DIRECTORY_SEPARATOR . 'preview_' . $template->id . '.pdf';
 
             // Detect OS for proper command
             $isWindows = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
 
-            // Find LibreOffice executable
+            // Find LibreOffice executable using system PATH
             $sofficeCommand = null;
 
             if ($isWindows) {
-                // Windows: check common installation paths directly first
-                $possiblePaths = [
-                    'C:\\Program Files\\LibreOffice\\program\\soffice.exe',
-                    'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe',
-                    getenv('ProgramFiles') . '\\LibreOffice\\program\\soffice.exe',
-                    getenv('ProgramFiles(x86)') . '\\LibreOffice\\program\\soffice.exe',
-                ];
-
-                foreach ($possiblePaths as $path) {
-                    if (file_exists($path)) {
-                        $sofficeCommand = $path;
-                        break;
-                    }
-                }
-
-                // If not found in common paths, try PATH
-                if (!$sofficeCommand) {
-                    exec('where soffice 2>NUL', $output, $returnCode);
-                    if ($returnCode === 0 && !empty($output)) {
-                        $sofficeCommand = trim($output[0]);
-                    }
+                exec('where soffice 2>NUL', $output, $returnCode);
+                if ($returnCode === 0 && !empty($output)) {
+                    $sofficeCommand = trim($output[0]);
                 }
             } else {
-                // Linux/Mac: use which command
-                exec('which libreoffice 2>/dev/null', $output, $returnCode);
+                exec('which soffice 2>/dev/null', $output, $returnCode);
                 if ($returnCode === 0 && !empty($output)) {
-                    $sofficeCommand = 'libreoffice';
+                    $sofficeCommand = 'soffice';
                 } else {
-                    exec('which soffice 2>/dev/null', $output2, $returnCode2);
+                    exec('which libreoffice 2>/dev/null', $output2, $returnCode2);
                     if ($returnCode2 === 0 && !empty($output2)) {
-                        $sofficeCommand = 'soffice';
+                        $sofficeCommand = 'libreoffice';
                     }
                 }
             }
@@ -541,11 +528,11 @@ class DocumentTemplateController extends Controller
                 ], 500);
             }
 
-            // Return PDF file
+            // Return PDF file and clean up after sending
             return response()->file($pdfPath, [
                 'Content-Type' => 'application/pdf',
                 'Content-Disposition' => 'inline; filename="preview.pdf"',
-            ]);
+            ])->deleteFileAfterSend(true);
 
         } catch (\Exception $e) {
             return response()->json([
@@ -553,6 +540,11 @@ class DocumentTemplateController extends Controller
                 'message' => 'Error during PDF conversion: ' . $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ], 500);
+        } finally {
+            // Clean up temp DOCX file if it exists
+            if (isset($tempDocxPath) && file_exists($tempDocxPath)) {
+                @unlink($tempDocxPath);
+            }
         }
     }
 
