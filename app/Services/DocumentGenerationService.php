@@ -326,7 +326,6 @@ class DocumentGenerationService
             'nama_ormawa' => $document->unit->name ?? '',
             'kode_unit' => $document->unit->code ?? '',
             'kategori_unit' => $document->unit->category ?? '',
-
             // Dates
             'created_date' => $this->formatDate($document->created_at),
             'submission_date' => $this->formatDate($document->submitted_at ?? $document->created_at),
@@ -432,6 +431,8 @@ class DocumentGenerationService
             'NAMA_SINGKAT_ORMAWA' => $data['unit_code'] ?? '',
 
             'NAMA_DEPARTEMEN' => $data['unit_name'] ?? '',
+            // Lowercase alias for templates using ${nama_departemen}
+            'nama_departemen' => $data['unit_name'] ?? '',
         ];
 
         // Merge uppercase mappings into data

@@ -10,6 +10,7 @@ use App\Services\DocumentGenerationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use PhpOffice\PhpWord\TemplateProcessor;
 
 class DocumentController extends Controller
 {
@@ -542,6 +543,256 @@ class DocumentController extends Controller
                 'success' => false,
                 'message' => 'Error: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Bubuhkan tanda tangan ke dokumen tanpa approve
+     * Endpoint ini hanya menambahkan signature ke approval sheet
+     * tanpa mengubah workflow status dokumen
+     */
+    public function applySignature(Request $request, $id)
+    {
+        $document = Document::findOrFail($id);
+        $user = $request->user();
+
+        // Validasi: Hanya current holder yang bisa bubuhkan tanda tangan
+        if ($document->current_holder_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak memiliki akses untuk membubuhkan tanda tangan pada dokumen ini'
+            ], 403);
+        }
+
+        // Validasi: Dokumen harus memiliki approval sheet
+        if (!$document->file_approval_sheet) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Dokumen belum memiliki lembar pengesahan'
+            ], 400);
+        }
+
+        // Validasi: File harus berformat DOCX
+        $fileExtension = pathinfo($document->file_approval_sheet, PATHINFO_EXTENSION);
+        if (strtolower($fileExtension) !== 'docx') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Hanya file DOCX yang dapat dibubuhkan tanda tangan'
+            ], 400);
+        }
+
+        // Ambil signature user (ambil yang paling baru berdasarkan updated_at)
+        $signature = Sign::where('user_id', $user->id)
+            ->latest('updated_at')
+            ->first();
+
+        if (!$signature) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda belum memiliki tanda tangan. Silakan upload tanda tangan terlebih dahulu.'
+            ], 400);
+        }
+
+        // Force refresh dari database untuk ensure data terbaru
+        $signature->refresh();
+
+        // Validasi: Signature path harus ada
+        if (!$signature->signature) {
+            return response()->json([
+                'success' => false,
+                'message' => 'File tanda tangan tidak ditemukan. Silakan upload ulang tanda tangan Anda.'
+            ], 400);
+        }
+
+        // Validasi: File signature harus ada di storage
+        if (!Storage::disk('private')->exists($signature->signature)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'File tanda tangan hilang dari storage. Silakan upload ulang tanda tangan Anda.'
+            ], 400);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Log untuk debugging
+            \Log::info('ApplySignature: Starting', [
+                'document_id' => $document->id,
+                'user_id' => $user->id,
+                'signature_id' => $signature->id,
+                'signature_path' => $signature->signature,
+                'signature_updated_at' => $signature->updated_at,
+            ]);
+
+            // Regenerate approval sheet from template to ensure fresh placeholders
+            // This is necessary because if signature was already embedded before,
+            // the placeholder ${ttd_xxx} no longer exists (it's now an image)
+            \Log::info('ApplySignature: Regenerating approval sheet from template');
+
+            $newFilePath = $this->documentGenerationService->generateFromTemplate(
+                $document,
+                'lembar_pengesahan',
+                null
+            );
+
+            // Update document with new approval sheet path
+            $document->update([
+                'file_approval_sheet' => $newFilePath
+            ]);
+
+            // Refresh document to get updated file path
+            $document->refresh();
+            $approvalSheetPath = $document->file_approval_sheet;
+
+            \Log::info('ApplySignature: Approval sheet regenerated', [
+                'new_path' => $approvalSheetPath,
+            ]);
+
+            // Now manually add current user's signature since they haven't approved yet
+            // (insertSignatures only adds signatures from APPROVED logs)
+
+            // Download regenerated approval sheet from MinIO ke temporary file
+            $approvalSheetPath = $document->file_approval_sheet;
+            $tempDocxPath = sys_get_temp_dir() . '/approval_sheet_' . uniqid() . '.docx';
+
+            $docxContent = Storage::disk('private')->get($approvalSheetPath);
+            file_put_contents($tempDocxPath, $docxContent);
+
+            // Download signature dari MinIO ke temporary file
+            $tempSignaturePath = sys_get_temp_dir() . '/signature_' . uniqid() . '.' . pathinfo($signature->signature, PATHINFO_EXTENSION);
+            $signatureContent = Storage::disk('private')->get($signature->signature);
+            file_put_contents($tempSignaturePath, $signatureContent);
+
+            \Log::info('ApplySignature: Files downloaded', [
+                'temp_docx' => $tempDocxPath,
+                'temp_signature' => $tempSignaturePath,
+                'signature_file_size' => strlen($signatureContent),
+            ]);
+
+            // Load template processor
+            $templateProcessor = new TemplateProcessor($tempDocxPath);
+
+            // Tentukan placeholder berdasarkan role user
+            $userRole = $user->role->slug ?? '';
+            $placeholders = [];
+
+            switch ($userRole) {
+                case 'ketua-ormawa':
+                    $placeholders = ['ttd_ketua_ormawa', 'signature_ketua_ormawa'];
+                    break;
+                case 'dosen-pendamping':
+                    $placeholders = ['ttd_dosen_pendamping', 'signature_dosen_pendamping'];
+                    break;
+                case 'ketua-departemen':
+                    $placeholders = ['ttd_ketua_departemen', 'signature_ketua_departemen'];
+                    break;
+                case 'wadek1':
+                    $placeholders = ['ttd_wadek1', 'signature_wadek1'];
+                    break;
+                case 'kemahasiswaan':
+                    $placeholders = ['ttd_kemahasiswaan', 'signature_kemahasiswaan'];
+                    break;
+                case 'sumber-daya':
+                    $placeholders = ['ttd_sumber_daya', 'signature_sumber_daya'];
+                    break;
+                case 'senat':
+                    $placeholders = ['ttd_ketua_senat', 'signature_ketua_senat'];
+                    break;
+                default:
+                    // Generic approver placeholders
+                    $placeholders = ['signature_approver_1', 'signature_approver_2', 'signature_approver_3'];
+                    break;
+            }
+
+            // Insert signature ke semua placeholder yang relevan
+            \Log::info('ApplySignature: Attempting to insert signature', [
+                'user_role' => $userRole,
+                'placeholders' => $placeholders,
+            ]);
+
+            $inserted = false;
+            $insertedPlaceholders = [];
+            foreach ($placeholders as $placeholder) {
+                try {
+                    $templateProcessor->setImageValue(
+                        $placeholder,
+                        [
+                            'path' => $tempSignaturePath,
+                            'width' => 100,
+                            'height' => 50,
+                            'ratio' => false
+                        ]
+                    );
+                    $inserted = true;
+                    $insertedPlaceholders[] = $placeholder;
+                    \Log::info('ApplySignature: Successfully inserted at placeholder', ['placeholder' => $placeholder]);
+                } catch (\Exception $e) {
+                    // Placeholder tidak ditemukan di template, lanjut ke placeholder berikutnya
+                    \Log::warning('ApplySignature: Placeholder not found', [
+                        'placeholder' => $placeholder,
+                        'error' => $e->getMessage(),
+                    ]);
+                    continue;
+                }
+            }
+
+            if (!$inserted) {
+                \Log::error('ApplySignature: No placeholders found in template', [
+                    'tried_placeholders' => $placeholders,
+                ]);
+                throw new \Exception('Placeholder tanda tangan untuk role Anda tidak ditemukan di template');
+            }
+
+            \Log::info('ApplySignature: Signature inserted successfully', [
+                'inserted_at' => $insertedPlaceholders,
+            ]);
+
+            // Save modified document
+            $templateProcessor->saveAs($tempDocxPath);
+
+            // Upload kembali ke MinIO (overwrite file lama)
+            $modifiedContent = file_get_contents($tempDocxPath);
+            $modifiedSize = strlen($modifiedContent);
+
+            \Log::info('ApplySignature: Uploading modified document', [
+                'path' => $approvalSheetPath,
+                'size' => $modifiedSize,
+            ]);
+
+            Storage::disk('private')->put($approvalSheetPath, $modifiedContent);
+
+            \Log::info('ApplySignature: Document uploaded successfully');
+
+            // Log action
+            DocumentLog::create([
+                'document_id' => $document->id,
+                'user_id' => $user->id,
+                'action' => 'UPDATED',
+                'note' => "Tanda tangan dibubuhkan oleh {$user->name}",
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Tanda tangan berhasil dibubuhkan pada dokumen',
+                'data' => $document->fresh(['currentHolder', 'creator', 'logs'])
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal membubuhkan tanda tangan: ' . $e->getMessage()
+            ], 500);
+        } finally {
+            // Cleanup temporary files
+            if (isset($tempDocxPath) && file_exists($tempDocxPath)) {
+                @unlink($tempDocxPath);
+            }
+            if (isset($tempSignaturePath) && file_exists($tempSignaturePath)) {
+                @unlink($tempSignaturePath);
+            }
         }
     }
 

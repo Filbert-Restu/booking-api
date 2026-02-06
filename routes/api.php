@@ -92,6 +92,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{id}/approve', [DocumentController::class, 'approve']);  // Approve dokumen
         Route::post('/{id}/reject', [DocumentController::class, 'reject']);    // Reject dokumen
         Route::post('/{id}/revise', [DocumentController::class, 'revise']);    // Kembalikan untuk revisi
+        Route::post('/{id}/apply-signature', [DocumentController::class, 'applySignature']);  // Bubuhkan tanda tangan (tanpa approve)
 
         // Generate documents from templates
         Route::post('/{id}/generate/executive-summary', [DocumentController::class, 'generateExecutiveSummary']);
