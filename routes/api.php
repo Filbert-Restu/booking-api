@@ -3,6 +3,9 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
+// Admin
+use App\Http\Controllers\Admin\AdminUserController;
+
 use App\Http\Controllers\WorkflowController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\UnitController;
@@ -40,7 +43,6 @@ Route::get('/dev/users', function () {
 
 // Routes yang membutuhkan autentikasi
 Route::middleware('auth:sanctum')->group(function () {
-
     // Signature (Tanda Tangan) Routes
     Route::prefix('signs')->group(function () {
         Route::get('/', [SignController::class, 'index']);      // Lihat tanda tangan sendiri

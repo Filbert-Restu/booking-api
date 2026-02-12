@@ -421,20 +421,40 @@ class DocumentTemplateController extends Controller
             $tempDocxPath = $tempDir . DIRECTORY_SEPARATOR . 'temp_' . $template->id . '.docx';
             $fileContents = Storage::disk('private')->get($template->file_path);
             file_put_contents($tempDocxPath, $fileContents);
-            
+
             $docxPath = $tempDocxPath;
             $pdfPath = $tempDir . DIRECTORY_SEPARATOR . 'preview_' . $template->id . '.pdf';
 
             // Detect OS for proper command
             $isWindows = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
 
-            // Find LibreOffice executable using system PATH
+            // Find LibreOffice executable
             $sofficeCommand = null;
 
             if ($isWindows) {
+                // First try PATH
                 exec('where soffice 2>NUL', $output, $returnCode);
                 if ($returnCode === 0 && !empty($output)) {
                     $sofficeCommand = trim($output[0]);
+                }
+
+                // If not in PATH, check common installation locations
+                if (!$sofficeCommand) {
+                    $commonPaths = [
+                        'C:\\Program Files\\LibreOffice\\program\\soffice.exe',
+                        'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe',
+                        getenv('ProgramFiles') . '\\LibreOffice\\program\\soffice.exe',
+                        getenv('ProgramFiles(x86)') . '\\LibreOffice\\program\\soffice.exe',
+                        base_path('libreoffice-portable\\App\\libreoffice\\program\\soffice.exe'),
+                        base_path('LibreOfficePortable\\App\\libreoffice\\program\\soffice.exe'),
+                    ];
+
+                    foreach ($commonPaths as $path) {
+                        if (file_exists($path)) {
+                            $sofficeCommand = $path;
+                            break;
+                        }
+                    }
                 }
             } else {
                 exec('which soffice 2>/dev/null', $output, $returnCode);
@@ -452,11 +472,11 @@ class DocumentTemplateController extends Controller
             if (!$sofficeCommand) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'LibreOffice tidak ditemukan. Pastikan sudah terinstall dan ada di PATH.',
+                    'message' => 'LibreOffice tidak ditemukan. Pastikan sudah terinstall.',
                     'fallback' => 'docx',
                     'os' => PHP_OS,
                     'hint' => $isWindows
-                        ? 'Install LibreOffice dan tambahkan ke PATH: C:\\Program Files\\LibreOffice\\program'
+                        ? 'Install LibreOffice dari https://www.libreoffice.org/download/'
                         : 'Install dengan: sudo apt-get install libreoffice'
                 ], 503);
             }

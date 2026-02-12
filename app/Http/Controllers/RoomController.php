@@ -7,6 +7,7 @@ use App\Models\RoomBooking;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class RoomController extends Controller
@@ -25,31 +26,26 @@ class RoomController extends Controller
     public function index(Request $request)
     {
         $query = Room::query()
-            ->select('id', 'name', 'code', 'capacity', 'location', 'building', 'floor', 'status', 'facilities', 'images', 'created_at', 'updated_at');
+            ->select('id', 'name', 'code', 'capacity', 'status', 'facilities');
 
-        // Filter by status (optional, jika tidak ada tampilkan semua)
         if ($request->has('status')) {
             $query->where('status', $request->status);
         }
 
-        // Filter by minimal capacity
         if ($request->has('capacity_min')) {
             $query->where('capacity', '>=', $request->capacity_min);
         }
 
-        // Search by name or code
         if ($request->has('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%")
-                  ->orWhere('location', 'like', "%{$search}%");
+                  ->orWhere('code', 'like', "%{$search}%");
             });
         }
 
         $rooms = $query->latest()->get();
 
-        // Jika ada filter ketersediaan waktu, cek availability
         if ($request->has(['available_date', 'available_start', 'available_end'])) {
             $rooms = $rooms->map(function ($room) use ($request) {
                 $room->is_available = $room->isAvailable(
@@ -104,7 +100,7 @@ class RoomController extends Controller
      */
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
+        $validated = $request->validate([
             'name' => 'required|string|max:255',
             'code' => 'required|string|max:50|unique:rooms,code',
             'capacity' => 'nullable|integer|min:1',
@@ -112,24 +108,51 @@ class RoomController extends Controller
             'status' => 'nullable|in:ACTIVE,MAINTENANCE,INACTIVE',
             'description' => 'nullable|string',
             'images' => 'nullable|array',
-            'images.*' => 'nullable|string', // Path dari upload
+            'images.*' => 'file|image|mimes:png,jpg,jpeg|max:5120',
         ]);
 
-        if ($validator->fails()) {
+        $uploadedPaths = [];
+
+        DB::beginTransaction();
+
+        try {
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $image) {
+                    $path = $image->store('rooms', 'private');
+                    $uploadedPaths[] = $path;
+                }
+            }
+
+            $validated['images'] = $uploadedPaths;
+            $room = Room::create($validated);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Ruangan berhasil dibuat',
+                'data' => $room,
+            ], 201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            // 4. Cleanup (Rollback File)
+            // Jika DB gagal, hapus file yang telanjur ter-upload ke MinIO
+            foreach ($uploadedPaths as $path) {
+                if (Storage::disk('private')->exists($path)) {
+                    Storage::disk('private')->delete($path);
+                }
+            }
+
+            // Log error untuk debugging developer (opsional tapi disarankan)
+            // Log::error('Room Store Error: ' . $e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $validator->errors(),
-            ], 422);
+                'message' => 'Gagal membuat ruangan: ' . $e->getMessage(),
+            ], 500);
         }
-
-        $room = Room::create($validator->validated());
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Ruangan berhasil dibuat',
-            'data' => $room,
-        ], 201);
     }
 
     /**
@@ -143,9 +166,8 @@ class RoomController extends Controller
             'name' => 'sometimes|required|string|max:255',
             'code' => 'sometimes|required|string|max:50|unique:rooms,code,' . $id,
             'capacity' => 'nullable|integer|min:1',
-            'location' => 'nullable|string|max:255',
-            'building' => 'nullable|string|max:255',
-            'floor' => 'nullable|string|max:50',
+            'facilities' => 'nullable|array',
+            'description' => 'nullable|string',
             'images.*' => 'nullable|string',
         ]);
 
@@ -203,6 +225,7 @@ class RoomController extends Controller
             'date' => 'required|date|after_or_equal:today',
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i|after:start_time',
+            'exclude_document_id' => 'nullable|integer', // Parameter baru untuk exclude document
         ]);
 
         if ($validator->fails()) {
@@ -214,6 +237,7 @@ class RoomController extends Controller
         }
 
         $room = Room::findOrFail($id);
+        $excludeDocumentId = $request->exclude_document_id;
 
         \Log::info('🔍 RoomController.checkAvailability() - REQUEST', [
             'room_id' => $id,
@@ -221,6 +245,7 @@ class RoomController extends Controller
             'date' => $request->date,
             'start_time' => $request->start_time,
             'end_time' => $request->end_time,
+            'exclude_document_id' => $excludeDocumentId,
         ]);
 
         // First, let's see all bookings for this room on this date
@@ -241,7 +266,9 @@ class RoomController extends Controller
         $isAvailable = $room->isAvailable(
             $request->date,
             $request->start_time,
-            $request->end_time
+            $request->end_time,
+            null, // excludeBookingId - tidak digunakan disini
+            $excludeDocumentId // excludeDocumentId - untuk edit mode
         );
 
         \Log::info('📊 Availability FINAL result', [
@@ -251,17 +278,25 @@ class RoomController extends Controller
         // Get conflicting bookings if not available
         $conflicts = null;
         if (!$isAvailable) {
-            $conflicts = RoomBooking::with(['document', 'bookedBy'])
+            $conflictQuery = RoomBooking::with(['document', 'bookedBy'])
                 ->where('room_id', $id)
                 ->where('booking_date', $request->date)
                 ->where('start_time', '<', $request->end_time)
-                ->where('end_time', '>', $request->start_time)
-                ->get();
+                ->where('end_time', '>', $request->start_time);
+
+            // Exclude bookings from the document being edited
+            if ($excludeDocumentId) {
+                $conflictQuery->where('document_id', '!=', $excludeDocumentId);
+            }
+
+            $conflicts = $conflictQuery->get();
 
             \Log::info('⚠️ Conflicts found', [
                 'count' => $conflicts->count(),
+                'exclude_document_id' => $excludeDocumentId,
                 'conflicts' => $conflicts->map(fn($b) => [
                     'id' => $b->id,
+                    'document_id' => $b->document_id,
                     'start' => $b->start_time,
                     'end' => $b->end_time,
                     'status' => $b->status,

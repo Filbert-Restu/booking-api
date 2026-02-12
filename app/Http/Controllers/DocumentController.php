@@ -400,11 +400,11 @@ class DocumentController extends Controller
             ], 403);
         }
 
-        // Validasi: Dokumen harus dalam status DRAFT
-        if ($document->status !== 'DRAFT') {
+        // Validasi: Dokumen harus dalam status DRAFT atau REVISION (untuk resubmit setelah revisi)
+        if (!in_array($document->status, ['DRAFT', 'REVISION'])) {
             return response()->json([
                 'success' => false,
-                'message' => 'Dokumen sudah disubmit sebelumnya'
+                'message' => 'Dokumen dalam status ' . $document->status . ' tidak dapat diajukan ulang'
             ], 400);
         }
 
@@ -430,19 +430,25 @@ class DocumentController extends Controller
                 'current_holder_id' => $firstApprover->id,
             ]);
 
-            // Log submit
+            // Log submit dengan note yang berbeda untuk resubmit
+            $logNote = $document->status === 'REVISION'
+                ? 'Dokumen diajukan ulang setelah revisi'
+                : 'Dokumen diajukan untuk diproses';
+
             DocumentLog::create([
                 'document_id' => $document->id,
                 'user_id' => $user->id,
                 'action' => 'SUBMITTED',
-                'note' => 'Dokumen diajukan untuk diproses',
+                'note' => $logNote,
                 'step_snapshot' => 0,
             ]);
         });
 
         return response()->json([
             'success' => true,
-            'message' => 'Dokumen berhasil disubmit dan diteruskan ke approver pertama',
+            'message' => $document->status === 'REVISION'
+                ? 'Dokumen berhasil diajukan ulang setelah revisi dan diteruskan ke approver pertama'
+                : 'Dokumen berhasil disubmit dan diteruskan ke approver pertama',
             'data' => $document->fresh(['currentHolder', 'creator', 'logs'])
         ]);
     }
@@ -809,8 +815,8 @@ class DocumentController extends Controller
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
 
-        // Validasi Status
-        if (!in_array($document->status, ['DRAFT', 'REVISED'])) {
+        // Validasi Status - support both REVISION dan REVISED untuk backward compatibility
+        if (!in_array($document->status, ['DRAFT', 'REVISED', 'REVISION'])) {
             return response()->json(['success' => false, 'message' => 'Dokumen sudah dikunci'], 400);
         }
 
