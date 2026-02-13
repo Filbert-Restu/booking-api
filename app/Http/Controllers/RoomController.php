@@ -168,6 +168,7 @@ class RoomController extends Controller
             'capacity' => 'nullable|integer|min:1',
             'facilities' => 'nullable|array',
             'description' => 'nullable|string',
+            'status' => 'nullable|in:ACTIVE,MAINTENANCE,INACTIVE',
             'images.*' => 'nullable|string',
         ]);
 

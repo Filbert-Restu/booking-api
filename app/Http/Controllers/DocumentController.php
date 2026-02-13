@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpWord\TemplateProcessor;
+use App\Models\RoomBooking;
 
 class DocumentController extends Controller
 {
@@ -409,6 +410,43 @@ class DocumentController extends Controller
         }
 
         DB::transaction(function () use ($document, $user) {
+            // AUTO APPROVAL untuk Admin dan Sumber Daya
+            $userRole = $user->role->slug ?? '';
+            if (in_array($userRole, ['admin', 'sumber-daya'])) {
+                $document->update([
+                    'status' => 'APPROVED',
+                    'current_step_order' => 999, // End of workflow
+                    'current_holder_id' => null,
+                ]);
+
+                DocumentLog::create([
+                    'document_id' => $document->id,
+                    'user_id' => $user->id,
+                    'action' => 'APPROVED',
+                    'note' => 'Dokumen disetujui secara otomatis (Manual Booking)',
+                    'step_snapshot' => 999,
+                ]);
+
+                // Create RoomBooking record
+                $content = $document->content;
+                if (isset($content['room_id']) && isset($content['booking_date'])) {
+                    RoomBooking::create([
+                        'document_id' => $document->id,
+                        'room_id' => $content['room_id'],
+                        'booked_by' => $user->id,
+                        'booking_date' => $content['booking_date'],
+                        'start_time' => $content['start_time'] ?? '08:00',
+                        'end_time' => $content['end_time'] ?? '16:00',
+                        'purpose' => $content['event_name'] ?? 'Manual Booking',
+                        'status' => 'APPROVED',
+                        'approved_by' => $user->id,
+                        'approved_at' => now(),
+                    ]);
+                }
+
+                return;
+            }
+
             // Cari langkah pertama workflow
             $firstStep = $document->workflow->steps()->where('step_order', 1)->first();
 
@@ -420,7 +458,13 @@ class DocumentController extends Controller
             $firstApprover = $this->workflowEngine->findApprover($document, $firstStep);
 
             if (!$firstApprover) {
-                throw new \Exception('Tidak dapat menemukan approver untuk langkah pertama');
+                // FALLBACK: Jika tidak ada users dengan role yang sesuai di unit yang sesuai
+                // Kita coba cari user dengan role ketua-ormawa di unit pembuat dokumen
+                // ATAU throw error yang lebih deskriptif
+                $roleName = $firstStep->target_role_slug;
+                $unitName = $document->unit->name ?? 'Unknown Unit';
+                
+                throw new \Exception("Tidak dapat menemukan approver untuk langkah '{$firstStep->step_name}'. Diperlukan user dengan role '{$roleName}' di unit '{$unitName}'. Silakan hubungi admin untuk menambahkan user dengan role tersebut.");
             }
 
             // Update dokumen
@@ -446,9 +490,11 @@ class DocumentController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => $document->status === 'REVISION'
-                ? 'Dokumen berhasil diajukan ulang setelah revisi dan diteruskan ke approver pertama'
-                : 'Dokumen berhasil disubmit dan diteruskan ke approver pertama',
+            'message' => ($document->fresh()->status === 'APPROVED') 
+                ? 'Dokumen berhasil disubmit dan disetujui secara otomatis'
+                : ($document->status === 'REVISION'
+                    ? 'Dokumen berhasil diajukan ulang setelah revisi dan diteruskan ke approver pertama'
+                    : 'Dokumen berhasil disubmit dan diteruskan ke approver pertama'),
             'data' => $document->fresh(['currentHolder', 'creator', 'logs'])
         ]);
     }

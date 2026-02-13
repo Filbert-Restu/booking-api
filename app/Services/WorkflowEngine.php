@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\WorkflowStep;
 use App\Models\Unit;
 use App\Services\DocumentGenerationService;
+use App\Models\RoomBooking;
 use Illuminate\Support\Facades\DB;
 
 class WorkflowEngine
@@ -84,6 +85,33 @@ class WorkflowEngine
                     'completed_at' => now(),
                     'current_holder_id' => null,
                 ]);
+
+                // Update or Create RoomBooking
+                $content = $document->content;
+                $booking = RoomBooking::where('document_id', $document->id)->first();
+
+                if ($booking) {
+                    $booking->update([
+                        'status' => 'APPROVED',
+                        'approved_by' => $actor->id,
+                        'approved_at' => now(),
+                    ]);
+                } else if (isset($content['room_id']) && isset($content['booking_date'])) {
+                    // Create if not exists (e.g. from Proposal Only -> Booking flow if implemented later, or backup)
+                    RoomBooking::create([
+                        'document_id' => $document->id,
+                        'room_id' => $content['room_id'],
+                        'booked_by' => $document->creator_id,
+                        'booking_date' => $content['booking_date'],
+                        'start_time' => $content['start_time'] ?? '08:00',
+                        'end_time' => $content['end_time'] ?? '16:00',
+                        'purpose' => $content['event_name'] ?? ($document->title ?? 'Booking'),
+                        'status' => 'APPROVED',
+                        'approved_by' => $actor->id,
+                        'approved_at' => now(),
+                    ]);
+                }
+
                 return 'Dokumen telah disetujui sepenuhnya dan proses selesai.';
             }
 
