@@ -43,6 +43,11 @@ Route::get('/dev/users', function () {
 
 // Routes yang membutuhkan autentikasi
 Route::middleware('auth:sanctum')->group(function () {
+    // Admin Dashboard
+    Route::prefix('admin/dashboard')->group(function () {
+        Route::get('/stats', [App\Http\Controllers\Admin\DashboardController::class, 'stats']);
+    });
+
     // Signature (Tanda Tangan) Routes
     Route::prefix('signs')->group(function () {
         Route::get('/', [SignController::class, 'index']);      // Lihat tanda tangan sendiri

@@ -65,7 +65,20 @@ class RoomBookingController extends Controller
             $query->where('booking_date', '<=', $request->date_to);
         }
 
-        $bookings = $query->latest('booking_date')->latest('start_time')->get();
+        $bookings = $query->latest('booking_date')->latest('start_time')->get()
+        ->map(function ($booking) {
+            $data = $booking->toArray();
+            // bookedBy relation conflicts with booked_by column (both serialize to booked_by)
+            // So we add user info under a separate key
+            $data['booked_by_user'] = $booking->bookedBy ? [
+                'id' => $booking->bookedBy->id,
+                'name' => $booking->bookedBy->name,
+                'email' => $booking->bookedBy->email,
+                'unit_code' => $booking->bookedBy->unit?->code,
+                'unit_name' => $booking->bookedBy->unit?->name,
+            ] : null;
+            return $data;
+        });
 
         return response()->json([
             'success' => true,

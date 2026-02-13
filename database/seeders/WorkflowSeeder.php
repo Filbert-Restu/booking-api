@@ -16,7 +16,7 @@ class WorkflowSeeder extends Seeder
     {
         // 1. ROLES
         $roles = [
-            ['name' => 'Super Admin', 'slug' => 'super-admin'],
+            ['name' => 'Admin', 'slug' => 'admin'],
             ['name' => 'Dosen Pendamping Himpunan', 'slug' => 'dosen-pendamping'],
             ['name' => 'Ketua Departemen', 'slug' => 'ketua-departemen'],
             ['name' => 'Ketua Ormawa', 'slug' => 'ketua-ormawa'],
@@ -72,8 +72,8 @@ class WorkflowSeeder extends Seeder
         $vosc = Unit::create(['name' => 'VOSC', 'code' => 'VOSC', 'category' => 'UKM', 'parent_id' => $fakultas->id]);
 
         // 3. USERS
-        // the roles array above creates 'super-admin' (slug)
-        $roleAdmin = Role::where('slug', 'super-admin')->first();
+        // the roles array above creates 'admin' (slug)
+        $roleAdmin = Role::where('slug', 'admin')->first();
         $roleWadek1 = Role::where('slug', 'wadek1')->first();
         $roleKemahasiswaan = Role::where('slug', 'kemahasiswaan')->first();
         $roleSumberDaya = Role::where('slug', 'sumber-daya')->first();
@@ -85,7 +85,7 @@ class WorkflowSeeder extends Seeder
         $rolePeminjam = Role::where('slug', 'peminjam')->first();
 
         // Admin
-        User::create(['name' => 'Super Admin', 'email' => 'superadmin@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleAdmin->id, 'unit_id' => $fakultas->id]);
+        User::create(['name' => 'Admin', 'email' => 'superadmin@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleAdmin->id, 'unit_id' => $fakultas->id]);
 
         // Wakil Dekan 1
         User::create(['name' => 'Prof. Dr. Budi Santoso', 'email' => 'wadek1@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleWadek1->id, 'unit_id' => $fakultas->id]);
