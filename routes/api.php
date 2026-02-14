@@ -70,6 +70,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{id}', [DocumentTemplateController::class, 'update']);              // Update template (form-data PUT workaround)
         Route::put('/{id}/placeholder-metadata', [DocumentTemplateController::class, 'updatePlaceholderMetadata']); // Update placeholder metadata
         Route::patch('/{id}/activate', [DocumentTemplateController::class, 'activate']);  // Set as active
+        Route::patch('/{id}/deactivate', [DocumentTemplateController::class, 'deactivate']); // Set as inactive
         Route::delete('/{id}', [DocumentTemplateController::class, 'destroy']);           // Delete template
     });
 

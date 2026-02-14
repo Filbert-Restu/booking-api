@@ -306,7 +306,13 @@ class RoomBookingController extends Controller
             $endTime = $request->end_time ?? $booking->end_time->format('H:i');
 
             $room = Room::findOrFail($roomId);
-            $isAvailable = $room->isAvailable($date, $startTime, $endTime, $booking->id);
+            $isAvailable = $room->isAvailable(
+                $date, 
+                $startTime, 
+                $endTime, 
+                $booking->id,
+                $booking->document_id // Exclude the document associated with this booking
+            );
 
             if (!$isAvailable) {
                 return response()->json([

@@ -83,7 +83,8 @@ class RoomBooking extends Model
             $this->booking_date->format('Y-m-d'),
             $this->start_time->format('H:i'),
             $this->end_time->format('H:i'),
-            $this->id
+            $this->id,
+            $this->document_id
         )) {
             return false;
         }
@@ -172,7 +173,8 @@ class RoomBooking extends Model
             $this->booking_date->format('Y-m-d'),
             $this->start_time->format('H:i'),
             $this->end_time->format('H:i'),
-            $this->id
+            $this->id,
+            $this->document_id
         );
     }
 

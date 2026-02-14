@@ -345,6 +345,38 @@ class DocumentTemplateController extends Controller
     }
 
     /**
+     * Set template as inactive
+     * PATCH /api/document-templates/{id}/deactivate
+     */
+    public function deactivate($id)
+    {
+        $template = DocumentTemplate::find($id);
+
+        if (!$template) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Template not found'
+            ], 404);
+        }
+
+        try {
+            $template->update(['is_active' => false]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Template berhasil dinonaktifkan',
+                'data' => $template->load('uploader:id,name,email')
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to deactivate template: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Get active templates
      * GET /api/document-templates/active
      */

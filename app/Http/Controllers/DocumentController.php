@@ -98,7 +98,7 @@ class DocumentController extends Controller
 
         // Untuk user biasa
         // Dokumen yang dibuat user
-        $myDocumentsQuery = Document::with(['workflow', 'currentHolder.role', 'creator', 'unit'])
+        $myDocumentsQuery = Document::with(['workflow', 'currentHolder.role', 'creator', 'unit', 'logs.user.unit'])
             ->where('creator_id', $user->id);
 
         // Filter by status untuk my_documents
@@ -134,7 +134,7 @@ class DocumentController extends Controller
         // Dokumen yang sedang menunggu action dari user ini
         $pendingDocumentsQuery = Document::with(['workflow', 'creator', 'unit'])
             ->where('current_holder_id', $user->id)
-            ->where('status', 'IN_PROGRESS');
+            ->whereIn('status', ['IN_PROGRESS', 'REVISION']);
 
         // Filter by workflow untuk pending
         if ($request->has('workflow_id')) {
@@ -144,16 +144,15 @@ class DocumentController extends Controller
         $this->applySearchFilter($pendingDocumentsQuery, $request);
         $pendingDocuments = $pendingDocumentsQuery->latest()->get();
 
-        // Dokumen yang sudah diproses oleh user ini (approved/rejected)
+        // Dokumen yang sudah diproses oleh user ini (approved/rejected/returned)
         // Ambil document_id dari logs dimana user ini melakukan action
         $processedDocumentIds = DocumentLog::where('user_id', $user->id)
-            ->whereIn('action', ['APPROVED', 'REJECTED'])
+            ->whereIn('action', ['APPROVED', 'REJECTED', 'RETURNED'])
             ->pluck('document_id')
             ->unique();
 
         $processedDocumentsQuery = Document::with(['workflow', 'currentHolder', 'creator', 'unit'])
-            ->whereIn('id', $processedDocumentIds)
-            ->where('creator_id', '!=', $user->id); // Hindari duplikasi dengan my_documents
+            ->whereIn('id', $processedDocumentIds);
 
         // Filter by status untuk processed
         if ($request->has('status')) {
@@ -967,7 +966,7 @@ class DocumentController extends Controller
 
         $hasProcessed = DocumentLog::where('document_id', $document->id)
             ->where('user_id', $user->id)
-            ->whereIn('action', ['APPROVED', 'REJECTED', 'SUBMITTED', 'REVISED'])
+            ->whereIn('action', ['APPROVED', 'REJECTED', 'SUBMITTED', 'REVISED', 'RETURNED'])
             ->exists();
 
         if (!$isAdmin && !$isCreator && !$isCurrentHolder && !$hasProcessed) {
@@ -1027,7 +1026,7 @@ class DocumentController extends Controller
 
         $hasProcessed = DocumentLog::where('document_id', $document->id)
             ->where('user_id', $user->id)
-            ->whereIn('action', ['APPROVED', 'REJECTED', 'SUBMITTED', 'REVISED'])
+            ->whereIn('action', ['APPROVED', 'REJECTED', 'SUBMITTED', 'REVISED', 'RETURNED'])
             ->exists();
 
         if (!$isAdmin && !$isCreator && !$isCurrentHolder && !$hasProcessed) {
