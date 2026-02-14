@@ -152,7 +152,8 @@ class DocumentController extends Controller
             ->unique();
 
         $processedDocumentsQuery = Document::with(['workflow', 'currentHolder', 'creator', 'unit'])
-            ->whereIn('id', $processedDocumentIds);
+            ->whereIn('id', $processedDocumentIds)
+            ->where('current_holder_id', '!=', $user->id);
 
         // Filter by status untuk processed
         if ($request->has('status')) {
@@ -604,6 +605,23 @@ class DocumentController extends Controller
      */
     public function applySignature(Request $request, $id)
     {
+        $validated = $request->validate([
+            'type' => 'nullable|in:approval-sheet,executive-summary'
+        ]);
+
+        $type = $validated['type'] ?? 'approval-sheet';
+        $columnMap = [
+            'approval-sheet' => 'file_approval_sheet',
+            'executive-summary' => 'file_executive_summary'
+        ];
+        $templateTypeMap = [
+            'approval-sheet' => 'lembar_pengesahan',
+            'executive-summary' => 'executive_summary'
+        ];
+
+        $column = $columnMap[$type];
+        $templateType = $templateTypeMap[$type];
+
         $document = Document::findOrFail($id);
         $user = $request->user();
 
@@ -615,16 +633,17 @@ class DocumentController extends Controller
             ], 403);
         }
 
-        // Validasi: Dokumen harus memiliki approval sheet
-        if (!$document->file_approval_sheet) {
+        // Validasi: Dokumen harus memiliki file target
+        if (!$document->{$column}) {
+            $typeName = $type === 'approval-sheet' ? 'lembar pengesahan' : 'executive summary';
             return response()->json([
                 'success' => false,
-                'message' => 'Dokumen belum memiliki lembar pengesahan'
+                'message' => "Dokumen belum memiliki {$typeName}"
             ], 400);
         }
 
         // Validasi: File harus berformat DOCX
-        $fileExtension = pathinfo($document->file_approval_sheet, PATHINFO_EXTENSION);
+        $fileExtension = pathinfo($document->{$column}, PATHINFO_EXTENSION);
         if (strtolower($fileExtension) !== 'docx') {
             return response()->json([
                 'success' => false,
@@ -678,17 +697,17 @@ class DocumentController extends Controller
             // Regenerate approval sheet from template to ensure fresh placeholders
             // This is necessary because if signature was already embedded before,
             // the placeholder ${ttd_xxx} no longer exists (it's now an image)
-            \Log::info('ApplySignature: Regenerating approval sheet from template');
+            \Log::info("ApplySignature: Regenerating {$type} from template");
 
             $newFilePath = $this->documentGenerationService->generateFromTemplate(
                 $document,
-                'lembar_pengesahan',
+                $templateType,
                 null
             );
 
-            // Update document with new approval sheet path
+            // Update document with new file path
             $document->update([
-                'file_approval_sheet' => $newFilePath
+                $column => $newFilePath
             ]);
 
             // Refresh document to get updated file path
@@ -702,11 +721,11 @@ class DocumentController extends Controller
             // Now manually add current user's signature since they haven't approved yet
             // (insertSignatures only adds signatures from APPROVED logs)
 
-            // Download regenerated approval sheet from MinIO ke temporary file
-            $approvalSheetPath = $document->file_approval_sheet;
-            $tempDocxPath = sys_get_temp_dir() . '/approval_sheet_' . uniqid() . '.docx';
+            // Download regenerated file from MinIO ke temporary file
+            $targetPath = $document->{$column};
+            $tempDocxPath = sys_get_temp_dir() . '/' . $type . '_' . uniqid() . '.docx';
 
-            $docxContent = Storage::disk('private')->get($approvalSheetPath);
+            $docxContent = Storage::disk('private')->get($targetPath);
             file_put_contents($tempDocxPath, $docxContent);
 
             // Download signature dari MinIO ke temporary file
@@ -805,21 +824,16 @@ class DocumentController extends Controller
             $modifiedContent = file_get_contents($tempDocxPath);
             $modifiedSize = strlen($modifiedContent);
 
-            \Log::info('ApplySignature: Uploading modified document', [
-                'path' => $approvalSheetPath,
-                'size' => $modifiedSize,
-            ]);
+            Storage::disk('private')->put($targetPath, $modifiedContent);
 
-            Storage::disk('private')->put($approvalSheetPath, $modifiedContent);
+            \Log::info("ApplySignature: {$type} updated successfully");
 
-            \Log::info('ApplySignature: Document uploaded successfully');
-
-            // Log action
+            $typeName = $type === 'approval-sheet' ? 'lembar pengesahan' : 'executive summary';
             DocumentLog::create([
                 'document_id' => $document->id,
                 'user_id' => $user->id,
                 'action' => 'UPDATED',
-                'note' => "Tanda tangan dibubuhkan oleh {$user->name}",
+                'note' => "Tanda tangan dibubuhkan pada {$typeName} oleh {$user->name}",
             ]);
 
             DB::commit();

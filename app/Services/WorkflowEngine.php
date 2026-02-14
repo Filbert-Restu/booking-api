@@ -50,20 +50,31 @@ class WorkflowEngine
                 ]);
 
                 $generationService = app(DocumentGenerationService::class);
-                $filePath = $generationService->generateFromTemplate(
+                
+                // 1. Regenerate Lembar Pengesahan (Standard for all approvers)
+                $filePathApproval = $generationService->generateFromTemplate(
                     $document,
                     'lembar_pengesahan',
                     $organizationType
                 );
+                
+                $updateData = ['file_approval_sheet' => $filePathApproval];
 
-                // Update document with new file path
-                $document->update([
-                    'file_approval_sheet' => $filePath
-                ]);
+                // 2. Jika approver adalah Wadek 1, regenerate juga Executive Summary
+                // Karena Wadek 1 wajib tanda tangan di kedua tempat
+                if ($actor->role && $actor->role->slug === 'wadek1') {
+                    \Log::info("[WorkflowEngine] Wadek 1 detected, also regenerating executive summary");
+                    $filePathExecutive = $generationService->generateFromTemplate(
+                        $document,
+                        'executive_summary',
+                        null
+                    );
+                    $updateData['file_executive_summary'] = $filePathExecutive;
+                }
 
-                \Log::info("[WorkflowEngine] ✅ Approval sheet regenerated successfully", [
-                    'file_path' => $filePath
-                ]);
+                $document->update($updateData);
+
+                \Log::info("[WorkflowEngine] ✅ Documents regenerated successfully");
             } catch (\Exception $e) {
                 // Don't fail the approval if regeneration fails, just log
                 \Log::error("[WorkflowEngine] Failed to regenerate approval sheet", [
