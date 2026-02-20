@@ -111,7 +111,7 @@ class DocumentGenerationService
         ]);
 
         // 4b. Insert signature images if placeholders exist
-        $this->insertSignatures($templateProcessor, $document);
+        $tempSignaturePaths = $this->insertSignatures($templateProcessor, $document);
 
         // 5. Save generated document to temp first, then upload to MinIO
         $outputFileName = $this->generateFileName($document, $templateType);
@@ -149,6 +149,14 @@ class DocumentGenerationService
         if (file_exists($tempOutputPath)) {
             unlink($tempOutputPath);
             \Log::debug('Temporary output file cleaned up', ['path' => $tempOutputPath]);
+        }
+
+        // 7b. Cleanup temporary signature files
+        foreach ($tempSignaturePaths as $sigPath) {
+            if (file_exists($sigPath)) {
+                @unlink($sigPath);
+                \Log::debug('Temporary signature file cleaned up', ['path' => $sigPath]);
+            }
         }
 
         // 8. Return relative path for MinIO
@@ -554,9 +562,13 @@ class DocumentGenerationService
 
     /**
      * Insert signature images into template
+     *
+     * @return array List of temporary file paths created during signature insertion (for cleanup)
      */
-    protected function insertSignatures(TemplateProcessor $templateProcessor, Document $document): void
+    protected function insertSignatures(TemplateProcessor $templateProcessor, Document $document): array
     {
+        $tempFilePaths = [];
+
         \Log::info("[SIGNATURE] Starting signature insertion", [
             'document_id' => $document->id,
             'creator_id' => $document->creator_id
@@ -570,6 +582,7 @@ class DocumentGenerationService
         if ($creatorSignature && $creatorSignature->signature) {
             // Download signature from MinIO to temp location
             $tempSignaturePath = $this->downloadSignatureToTemp($creatorSignature->signature);
+            if ($tempSignaturePath) $tempFilePaths[] = $tempSignaturePath;
 
             \Log::info("[SIGNATURE] Creator signature found", [
                 'user_id' => $document->creator_id,
@@ -662,6 +675,7 @@ class DocumentGenerationService
                     if ($approverSignature && $approverSignature->signature) {
                         // Download signature from MinIO to temp location
                         $tempSignaturePath = $this->downloadSignatureToTemp($approverSignature->signature);
+                        if ($tempSignaturePath) $tempFilePaths[] = $tempSignaturePath;
 
                         if ($tempSignaturePath && file_exists($tempSignaturePath)) {
                             // Try role-specific placeholders first
@@ -723,7 +737,11 @@ class DocumentGenerationService
             \Log::info("[SIGNATURE] No workflow found, skipping approver signatures");
         }
 
-        \Log::info("[SIGNATURE] Signature insertion completed");
+        \Log::info("[SIGNATURE] Signature insertion completed", [
+            'temp_files_created' => count($tempFilePaths)
+        ]);
+
+        return $tempFilePaths;
     }
 
     /**

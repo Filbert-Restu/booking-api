@@ -1253,11 +1253,11 @@ class DocumentController extends Controller
             throw new \Exception('PDF conversion failed');
         }
 
-        // Return PDF file
+        // Return PDF file and auto-delete temp file after response is sent
         return response()->file($pdfPath, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="' . pathinfo($docxPath, PATHINFO_FILENAME) . '.pdf"',
-        ]);
+        ])->deleteFileAfterSend(true);
     }
 
     /**
