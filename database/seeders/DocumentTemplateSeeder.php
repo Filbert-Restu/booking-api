@@ -77,9 +77,7 @@ class DocumentTemplateSeeder extends Seeder
             DocumentTemplate::create([
                 'template_type'         => $template['template_type'],
                 'template_name'         => $template['template_name'],
-                'file_name'             => null,
-                'file_path'             => null,
-                'file_url'              => null,
+                'file_path'             => '', // akan di-update saat template di-upload via UI
                 'organization_type'     => $template['organization_type'],
                 'description'           => $template['description'],
                 'is_active'             => true,
