@@ -52,7 +52,7 @@ class UserController extends Controller
             });
         }
 
-        $users = $query->latest()->get();
+        $users = $query->latest()->paginate($request->input('per_page', 15));
 
         return response()->json([
             'success' => true,

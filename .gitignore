@@ -28,3 +28,6 @@ Thumbs.db
 /libreoffice-portable/
 /LibreOffice_Portable.exe
 /libreoffice-portable.exe
+
+# Seeder-generated test template files
+/storage/app/test/

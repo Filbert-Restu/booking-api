@@ -26,10 +26,10 @@ class DashboardController extends Controller
                 ]
             ]);
         } catch (\Exception $e) {
+            \Log::error('Failed to fetch dashboard stats', ['error' => $e->getMessage()]);
             return response()->json([
                 'status' => 'error',
-                'message' => 'Failed to fetch dashboard stats',
-                'error' => $e->getMessage()
+                'message' => 'Gagal mengambil data dashboard'
             ], 500);
         }
     }

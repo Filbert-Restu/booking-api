@@ -21,6 +21,11 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
+            'admin' => \App\Http\Middleware\EnsureIsAdmin::class,
+        ]);
+
+        $middleware->api(prepend: [
+            \Illuminate\Routing\Middleware\ThrottleRequests::class.':api',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

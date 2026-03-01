@@ -83,16 +83,13 @@ class DocumentController extends Controller
                 $query->where('unit_id', $request->unit_id);
             }
 
-            // Tambahkan search filter
             $this->applySearchFilter($query, $request);
 
-            $allDocuments = $query->latest()->get();
+            $allDocuments = $query->latest()->paginate($request->input('per_page', 15));
 
             return response()->json([
                 'success' => true,
-                'data' => [
-                    'all_documents' => $allDocuments,
-                ]
+                'data' => $allDocuments
             ]);
         }
 
@@ -112,23 +109,16 @@ class DocumentController extends Controller
         }
 
         $this->applySearchFilter($myDocumentsQuery, $request);
-        $myDocuments = $myDocumentsQuery->latest()->get();
+        $myDocuments = $myDocumentsQuery->latest()->paginate($request->input('per_page', 15), ['*'], 'page_my');
 
         // Transform documents to include currentHolder with role
-        $myDocuments = $myDocuments->map(function ($doc) {
-            $docArray = $doc->toArray();
-            if ($doc->currentHolder) {
-                $docArray['currentHolder'] = [
-                    'id' => $doc->currentHolder->id,
-                    'name' => $doc->currentHolder->name,
-                    'email' => $doc->currentHolder->email,
-                    'role' => $doc->currentHolder->role ? [
-                        'id' => $doc->currentHolder->role->id,
-                        'name' => $doc->currentHolder->role->name,
-                    ] : null,
-                ];
-            }
-            return $docArray;
+        $myDocuments->getCollection()->transform(function ($doc) {
+            $doc->current_holder_info = $doc->currentHolder ? [
+                'id' => $doc->currentHolder->id,
+                'name' => $doc->currentHolder->name,
+                'role' => $doc->currentHolder->role->name ?? 'Unknown',
+            ] : null;
+            return $doc;
         });
 
         // Dokumen yang sedang menunggu action dari user ini
@@ -142,7 +132,7 @@ class DocumentController extends Controller
         }
 
         $this->applySearchFilter($pendingDocumentsQuery, $request);
-        $pendingDocuments = $pendingDocumentsQuery->latest()->get();
+        $pendingDocuments = $pendingDocumentsQuery->latest()->paginate($request->input('per_page', 15), ['*'], 'page_pending');
 
         // Dokumen yang sudah diproses oleh user ini (approved/rejected/returned)
         // Ambil document_id dari logs dimana user ini melakukan action
@@ -166,7 +156,7 @@ class DocumentController extends Controller
         }
 
         $this->applySearchFilter($processedDocumentsQuery, $request);
-        $processedDocuments = $processedDocumentsQuery->latest()->get();
+        $processedDocuments = $processedDocumentsQuery->latest()->paginate($request->input('per_page', 15));
 
         return response()->json([
             'success' => true,
@@ -233,10 +223,9 @@ class DocumentController extends Controller
      */
     public function store(Request $request)
     {
-        \Log::info('[DocumentController] store() called', [
-            'has_content' => $request->has('content'),
-            'content_value' => $request->input('content'),
-            'all_input' => $request->all(),
+        \Log::debug('[DocumentController] store() called', [
+            'workflow_id' => $request->workflow_id,
+            'title' => $request->title,
         ]);
 
         $validated = $request->validate([
@@ -279,11 +268,6 @@ class DocumentController extends Controller
 
         // Use the raw content from request (includes ALL fields)
         $validated['content'] = $content;
-
-        \Log::info('[DocumentController] Validated data', [
-            'content' => $validated['content'] ?? null,
-            'content_keys' => array_keys($validated['content'] ?? []),
-        ]);
 
         $user = $request->user();
 
@@ -549,9 +533,10 @@ class DocumentController extends Controller
                 'data' => $document->fresh(['currentHolder', 'creator', 'logs'])
             ]);
         } catch (\Exception $e) {
+            \Log::error('Failed to approve document', ['document_id' => $id, 'error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Gagal menyetujui dokumen. Silakan coba lagi.'
             ], 500);
         }
     }
@@ -591,9 +576,10 @@ class DocumentController extends Controller
                 'data' => $document->fresh(['currentHolder', 'creator', 'logs'])
             ]);
         } catch (\Exception $e) {
+            \Log::error('Failed to revise document', ['document_id' => $id, 'error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Gagal mengembalikan dokumen. Silakan coba lagi.'
             ], 500);
         }
     }
@@ -697,7 +683,7 @@ class DocumentController extends Controller
             // Regenerate approval sheet from template to ensure fresh placeholders
             // This is necessary because if signature was already embedded before,
             // the placeholder ${ttd_xxx} no longer exists (it's now an image)
-            \Log::info("ApplySignature: Regenerating {$type} from template");
+            \Log::debug("ApplySignature: Regenerating {$type} from template");
 
             $newFilePath = $this->documentGenerationService->generateFromTemplate(
                 $document,
@@ -846,9 +832,10 @@ class DocumentController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+            \Log::error('Failed to apply signature', ['document_id' => $id, 'error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal membubuhkan tanda tangan: ' . $e->getMessage()
+                'message' => 'Gagal membubuhkan tanda tangan. Silakan coba lagi.'
             ], 500);
         } finally {
             // Cleanup temporary files
@@ -1344,9 +1331,10 @@ class DocumentController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            \Log::error('Failed to generate executive summary', ['document_id' => $id, 'error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal generate executive summary: ' . $e->getMessage()
+                'message' => 'Gagal generate executive summary. Silakan coba lagi.'
             ], 500);
         }
     }
@@ -1390,9 +1378,10 @@ class DocumentController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            \Log::error('Failed to generate approval sheet', ['document_id' => $id, 'error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal generate lembar pengesahan: ' . $e->getMessage()
+                'message' => 'Gagal generate lembar pengesahan. Silakan coba lagi.'
             ], 500);
         }
     }

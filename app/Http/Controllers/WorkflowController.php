@@ -20,12 +20,12 @@ class WorkflowController extends Controller
 
         // Admin atau unit fakultas bisa melihat semua workflow
         if ($userUnitCategory === 'FAKULTAS') {
-            $workflows = Workflow::with('steps')->get();
+            $workflows = Workflow::with('steps')->paginate($request->input('per_page', 15));
         } else {
             // Ambil workflow yang sesuai dengan kategori unit user
             $workflows = Workflow::with('steps')
                 ->forCategory($userUnitCategory)
-                ->get();
+                ->paginate($request->input('per_page', 15));
         }
 
         return response()->json([

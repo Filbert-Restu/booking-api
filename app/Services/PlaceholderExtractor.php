@@ -57,6 +57,18 @@ class PlaceholderExtractor
     }
 
     /**
+     * Extract all ${...} placeholders directly from a plain text string.
+     * Use this when you don't have a DOCX file (e.g. in seeders).
+     */
+    public static function extractFromText(string $text): array
+    {
+        preg_match_all('/\$\{([a-zA-Z0-9_]+)\}/', $text, $matches);
+
+        return array_values(array_unique($matches[1] ?? []));
+    }
+
+
+    /**
      * Get all available fields from DocumentGenerationService
      * This should match the fields in prepareData() method
      */

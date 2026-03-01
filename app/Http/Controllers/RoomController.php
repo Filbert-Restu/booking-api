@@ -44,10 +44,10 @@ class RoomController extends Controller
             });
         }
 
-        $rooms = $query->latest()->get();
+        $rooms = $query->latest()->paginate($request->input('per_page', 15));
 
         if ($request->has(['available_date', 'available_start', 'available_end'])) {
-            $rooms = $rooms->map(function ($room) use ($request) {
+            $rooms->getCollection()->transform(function ($room) use ($request) {
                 $room->is_available = $room->isAvailable(
                     $request->available_date,
                     $request->available_start,
@@ -145,12 +145,11 @@ class RoomController extends Controller
                 }
             }
 
-            // Log error untuk debugging developer (opsional tapi disarankan)
-            // Log::error('Room Store Error: ' . $e->getMessage());
+            \Log::error('Room Store Error: ' . $e->getMessage());
 
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal membuat ruangan: ' . $e->getMessage(),
+                'message' => 'Gagal membuat ruangan. Silakan coba lagi.',
             ], 500);
         }
     }
@@ -240,28 +239,10 @@ class RoomController extends Controller
         $room = Room::findOrFail($id);
         $excludeDocumentId = $request->exclude_document_id;
 
-        \Log::info('🔍 RoomController.checkAvailability() - REQUEST', [
+        \Log::debug('RoomController.checkAvailability()', [
             'room_id' => $id,
-            'room_name' => $room->name,
             'date' => $request->date,
-            'start_time' => $request->start_time,
-            'end_time' => $request->end_time,
             'exclude_document_id' => $excludeDocumentId,
-        ]);
-
-        // First, let's see all bookings for this room on this date
-        $allBookings = RoomBooking::where('room_id', $id)
-            ->where('booking_date', $request->date)
-            ->get();
-
-        \Log::info('📋 All bookings for this room/date', [
-            'count' => $allBookings->count(),
-            'bookings' => $allBookings->map(fn($b) => [
-                'id' => $b->id,
-                'start_time' => $b->start_time,
-                'end_time' => $b->end_time,
-                'status' => $b->status,
-            ])->toArray(),
         ]);
 
         $isAvailable = $room->isAvailable(
@@ -272,9 +253,7 @@ class RoomController extends Controller
             $excludeDocumentId // excludeDocumentId - untuk edit mode
         );
 
-        \Log::info('📊 Availability FINAL result', [
-            'available' => $isAvailable,
-        ]);
+        \Log::debug('Availability result', ['available' => $isAvailable]);
 
         // Get conflicting bookings if not available
         $conflicts = null;
@@ -292,16 +271,8 @@ class RoomController extends Controller
 
             $conflicts = $conflictQuery->get();
 
-            \Log::info('⚠️ Conflicts found', [
+            \Log::debug('Conflicts found', [
                 'count' => $conflicts->count(),
-                'exclude_document_id' => $excludeDocumentId,
-                'conflicts' => $conflicts->map(fn($b) => [
-                    'id' => $b->id,
-                    'document_id' => $b->document_id,
-                    'start' => $b->start_time,
-                    'end' => $b->end_time,
-                    'status' => $b->status,
-                ]),
             ]);
         }
 
@@ -443,6 +414,14 @@ class RoomController extends Controller
 
         $images = $room->images ?? [];
         $pathToDelete = $request->path;
+
+        // Validasi path: pastikan path ada di array images room ini
+        if (!in_array($pathToDelete, $images)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Path gambar tidak valid untuk ruangan ini',
+            ], 400);
+        }
 
         // Hapus dari storage
         if (Storage::disk('private')->exists($pathToDelete)) {

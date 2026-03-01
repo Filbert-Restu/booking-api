@@ -168,9 +168,10 @@ class DocumentTemplateController extends Controller
                 }
             }
 
+            \Log::error('Failed to upload template', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to upload template: ' . $e->getMessage()
+                'message' => 'Gagal mengupload template. Silakan coba lagi.'
             ], 500);
         }
     }
@@ -299,9 +300,10 @@ class DocumentTemplateController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
 
+            \Log::error('Failed to update template', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update template: ' . $e->getMessage()
+                'message' => 'Gagal mengupdate template. Silakan coba lagi.'
             ], 500);
         }
     }
@@ -352,9 +354,10 @@ class DocumentTemplateController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            \Log::error('Failed to delete template', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to delete template: ' . $e->getMessage()
+                'message' => 'Gagal menghapus template. Silakan coba lagi.'
             ], 500);
         }
     }
@@ -384,9 +387,10 @@ class DocumentTemplateController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            \Log::error('Failed to activate template', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to activate template: ' . $e->getMessage()
+                'message' => 'Gagal mengaktifkan template. Silakan coba lagi.'
             ], 500);
         }
     }
@@ -416,9 +420,10 @@ class DocumentTemplateController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            \Log::error('Failed to deactivate template', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to deactivate template: ' . $e->getMessage()
+                'message' => 'Gagal menonaktifkan template. Silakan coba lagi.'
             ], 500);
         }
     }
@@ -637,19 +642,14 @@ class DocumentTemplateController extends Controller
             }
 
             if (!file_exists($pdfPath)) {
+                \Log::error('PDF conversion failed', [
+                    'command' => $command,
+                    'output' => $execOutput,
+                    'return_code' => $execReturn,
+                ]);
                 return response()->json([
                     'success' => false,
-                    'message' => 'Gagal mengkonversi DOCX ke PDF',
-                    'debug' => [
-                        'command' => $command,
-                        'soffice' => $sofficeCommand,
-                        'output' => $execOutput,
-                        'return_code' => $execReturn,
-                        'docx_path' => $docxPath,
-                        'expected_pdf' => $tempPdfPath,
-                        'target_pdf' => $pdfPath,
-                        'os' => PHP_OS
-                    ]
+                    'message' => 'Gagal mengkonversi DOCX ke PDF'
                 ], 500);
             }
 
@@ -660,10 +660,10 @@ class DocumentTemplateController extends Controller
             ])->deleteFileAfterSend(true);
 
         } catch (\Exception $e) {
+            \Log::error('Error during PDF conversion', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return response()->json([
                 'success' => false,
-                'message' => 'Error during PDF conversion: ' . $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'message' => 'Gagal mengkonversi dokumen ke PDF. Silakan coba lagi.'
             ], 500);
         } finally {
             // Clean up temp DOCX file if it exists
@@ -823,9 +823,10 @@ class DocumentTemplateController extends Controller
                 ]
             ]);
         } catch (\Exception $e) {
+            \Log::error('Failed to get available fields', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to get available fields: ' . $e->getMessage()
+                'message' => 'Gagal mengambil data field yang tersedia.'
             ], 500);
         }
     }
