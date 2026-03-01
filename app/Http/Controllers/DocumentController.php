@@ -84,19 +84,19 @@ class DocumentController extends Controller
                 $myQuery->where('status', $request->status);
             }
             $this->applySearchFilter($myQuery, $request);
-            $myDocuments = $myQuery->latest()->paginate($request->input('per_page', 15), ['*'], 'page_my');
+            $myDocuments = $myQuery->latest()->paginate($request->input('per_page', 10), ['*'], 'page_my');
 
             // pending_documents: dokumen yang butuh action
             $pendingQuery = clone $baseQuery;
             $pendingQuery->whereIn('status', ['IN_PROGRESS', 'REVISION']);
             $this->applySearchFilter($pendingQuery, $request);
-            $pendingDocuments = $pendingQuery->latest()->paginate($request->input('per_page', 15), ['*'], 'page_pending');
+            $pendingDocuments = $pendingQuery->latest()->paginate($request->input('per_page', 10), ['*'], 'page_pending');
 
             // processed_documents: dokumen yang sudah selesai diproses
             $processedQuery = clone $baseQuery;
             $processedQuery->whereIn('status', ['APPROVED', 'REJECTED', 'RETURNED']);
             $this->applySearchFilter($processedQuery, $request);
-            $processedDocuments = $processedQuery->latest()->paginate($request->input('per_page', 15));
+            $processedDocuments = $processedQuery->latest()->paginate($request->input('per_page', 10), ['*'], 'page_processed');
 
             return response()->json([
                 'success' => true,
@@ -124,7 +124,7 @@ class DocumentController extends Controller
         }
 
         $this->applySearchFilter($myDocumentsQuery, $request);
-        $myDocuments = $myDocumentsQuery->latest()->paginate($request->input('per_page', 15), ['*'], 'page_my');
+        $myDocuments = $myDocumentsQuery->latest()->paginate($request->input('per_page', 10), ['*'], 'page_my');
 
         // Transform documents to include currentHolder with role
         $myDocuments->getCollection()->transform(function ($doc) {
@@ -147,7 +147,7 @@ class DocumentController extends Controller
         }
 
         $this->applySearchFilter($pendingDocumentsQuery, $request);
-        $pendingDocuments = $pendingDocumentsQuery->latest()->paginate($request->input('per_page', 15), ['*'], 'page_pending');
+        $pendingDocuments = $pendingDocumentsQuery->latest()->paginate($request->input('per_page', 10), ['*'], 'page_pending');
 
         // Dokumen yang sudah diproses oleh user ini (approved/rejected/returned)
         // Ambil document_id dari logs dimana user ini melakukan action
@@ -171,7 +171,7 @@ class DocumentController extends Controller
         }
 
         $this->applySearchFilter($processedDocumentsQuery, $request);
-        $processedDocuments = $processedDocumentsQuery->latest()->paginate($request->input('per_page', 15));
+        $processedDocuments = $processedDocumentsQuery->latest()->paginate($request->input('per_page', 10), ['*'], 'page_processed');
 
         return response()->json([
             'success' => true,
@@ -1023,7 +1023,10 @@ class DocumentController extends Controller
         return response($fileContent, 200, [
             'Content-Type' => $mimeType,
             'Content-Disposition' => 'inline; filename="' . $fileName . '"',
-            'Cache-Control' => 'public, max-age=3600',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+            'ETag' => md5($path . $document->updated_at),
         ]);
     }
 
@@ -1083,7 +1086,10 @@ class DocumentController extends Controller
             return response($fileContent, 200, [
                 'Content-Type' => 'application/pdf',
                 'Content-Disposition' => 'inline',
-                'Cache-Control' => 'public, max-age=3600',
+                'Cache-Control' => 'no-cache, no-store, must-revalidate',
+                'Pragma' => 'no-cache',
+                'Expires' => '0',
+                'ETag' => md5($path . $document->updated_at),
             ]);
         }
 
