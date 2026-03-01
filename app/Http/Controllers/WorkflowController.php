@@ -16,16 +16,16 @@ class WorkflowController extends Controller
         $user = $request->user();
 
         // Ambil kategori unit dari user yang login
-        $userUnitCategory = $user->unit->category;
+        $userUnitCategory = $user->unit?->category;
 
         // Admin atau unit fakultas bisa melihat semua workflow
-        if ($userUnitCategory === 'FAKULTAS') {
-            $workflows = Workflow::with('steps')->paginate($request->input('per_page', 15));
+        if ($userUnitCategory === 'FAKULTAS' || $user->role?->slug === 'admin') {
+            $workflows = Workflow::with('steps')->get();
         } else {
             // Ambil workflow yang sesuai dengan kategori unit user
             $workflows = Workflow::with('steps')
                 ->forCategory($userUnitCategory)
-                ->paginate($request->input('per_page', 15));
+                ->get();
         }
 
         return response()->json([
@@ -43,8 +43,8 @@ class WorkflowController extends Controller
         $workflow = Workflow::with('steps')->findOrFail($id);
 
         // Admin atau unit fakultas bisa melihat semua workflow
-        $userUnitCategory = $user->unit->category;
-        if ($userUnitCategory !== 'FAKULTAS') {
+        $userUnitCategory = $user->unit?->category;
+        if ($userUnitCategory !== 'FAKULTAS' && $user->role?->slug !== 'admin') {
             // Validasi bahwa workflow sesuai dengan kategori unit user
             abort_if(
                 $workflow->applies_to_category !== $userUnitCategory,
@@ -65,8 +65,9 @@ class WorkflowController extends Controller
     public function store(Request $request)
     {
         // Pastikan hanya admin yang bisa membuat workflow
+        $user = $request->user();
         abort_if(
-            $request->user()->unit->category !== 'FAKULTAS',
+            $user->unit?->category !== 'FAKULTAS' && $user->role?->slug !== 'admin',
             403,
             'Hanya admin yang dapat membuat workflow'
         );
@@ -107,8 +108,9 @@ class WorkflowController extends Controller
     public function update(Request $request, $id)
     {
         // Pastikan hanya admin yang bisa mengubah workflow
+        $user = $request->user();
         abort_if(
-            $request->user()->unit->category !== 'FAKULTAS',
+            $user->unit?->category !== 'FAKULTAS' && $user->role?->slug !== 'admin',
             403,
             'Hanya admin yang dapat mengubah workflow'
         );
@@ -136,8 +138,9 @@ class WorkflowController extends Controller
     public function destroy(Request $request, $id)
     {
         // Pastikan hanya admin yang bisa menghapus workflow
+        $user = $request->user();
         abort_if(
-            $request->user()->unit->category !== 'FAKULTAS',
+            $user->unit?->category !== 'FAKULTAS' && $user->role?->slug !== 'admin',
             403,
             'Hanya admin yang dapat menghapus workflow'
         );
@@ -157,8 +160,9 @@ class WorkflowController extends Controller
     public function addStep(Request $request, $id)
     {
         // Pastikan hanya admin yang bisa menambah step
+        $user = $request->user();
         abort_if(
-            $request->user()->unit->category !== 'FAKULTAS',
+            $user->unit?->category !== 'FAKULTAS' && $user->role?->slug !== 'admin',
             403,
             'Hanya admin yang dapat menambahkan step'
         );
@@ -188,8 +192,9 @@ class WorkflowController extends Controller
     public function updateStep(Request $request, $workflowId, $stepId)
     {
         // Pastikan hanya admin yang bisa mengupdate step
+        $user = $request->user();
         abort_if(
-            $request->user()->unit->category !== 'FAKULTAS',
+            $user->unit?->category !== 'FAKULTAS' && $user->role?->slug !== 'admin',
             403,
             'Hanya admin yang dapat mengupdate step'
         );
@@ -220,8 +225,9 @@ class WorkflowController extends Controller
     public function deleteStep(Request $request, $workflowId, $stepId)
     {
         // Pastikan hanya admin yang bisa menghapus step
+        $user = $request->user();
         abort_if(
-            $request->user()->unit->category !== 'FAKULTAS',
+            $user->unit?->category !== 'FAKULTAS' && $user->role?->slug !== 'admin',
             403,
             'Hanya admin yang dapat menghapus step'
         );

@@ -159,7 +159,7 @@ class WorkflowEngine
                                         ->where('user_id', $targetUserId)
                                         ->exists();
 
-            if (!$isValidTarget && $document->user_id != $targetUserId) {
+            if (!$isValidTarget && $document->creator_id != $targetUserId) {
                 throw new \Exception("User target tidak ada dalam riwayat dokumen ini.");
             }
 

@@ -38,6 +38,8 @@ class DocumentController extends Controller
               });
         });
     }
+
+
     protected $workflowEngine;
     protected $documentGenerationService;
 
@@ -64,32 +66,45 @@ class DocumentController extends Controller
         $user = $request->user();
         $isAdmin = $user->role->slug === 'admin';
 
-        // Jika Admin, return semua dokumen
+        // Jika Admin, return semua dokumen dalam format yang sama (3-category)
         if ($isAdmin) {
-            $query = Document::with(['workflow', 'currentHolder', 'creator', 'unit', 'logs']);
+            $baseQuery = Document::with(['workflow', 'currentHolder', 'creator', 'unit', 'logs']);
 
-            // Filter by status
-            if ($request->has('status')) {
-                $query->where('status', $request->status);
-            }
-
-            // Filter by workflow
+            // Apply common filters
             if ($request->has('workflow_id')) {
-                $query->where('workflow_id', $request->workflow_id);
+                $baseQuery->where('workflow_id', $request->workflow_id);
             }
-
-            // Filter by unit
             if ($request->has('unit_id')) {
-                $query->where('unit_id', $request->unit_id);
+                $baseQuery->where('unit_id', $request->unit_id);
             }
 
-            $this->applySearchFilter($query, $request);
+            // my_documents: semua dokumen (untuk admin = semua)
+            $myQuery = clone $baseQuery;
+            if ($request->has('status')) {
+                $myQuery->where('status', $request->status);
+            }
+            $this->applySearchFilter($myQuery, $request);
+            $myDocuments = $myQuery->latest()->paginate($request->input('per_page', 15), ['*'], 'page_my');
 
-            $allDocuments = $query->latest()->paginate($request->input('per_page', 15));
+            // pending_documents: dokumen yang butuh action
+            $pendingQuery = clone $baseQuery;
+            $pendingQuery->whereIn('status', ['IN_PROGRESS', 'REVISION']);
+            $this->applySearchFilter($pendingQuery, $request);
+            $pendingDocuments = $pendingQuery->latest()->paginate($request->input('per_page', 15), ['*'], 'page_pending');
+
+            // processed_documents: dokumen yang sudah selesai diproses
+            $processedQuery = clone $baseQuery;
+            $processedQuery->whereIn('status', ['APPROVED', 'REJECTED', 'RETURNED']);
+            $this->applySearchFilter($processedQuery, $request);
+            $processedDocuments = $processedQuery->latest()->paginate($request->input('per_page', 15));
 
             return response()->json([
                 'success' => true,
-                'data' => $allDocuments
+                'data' => [
+                    'my_documents' => $myDocuments,
+                    'pending_documents' => $pendingDocuments,
+                    'processed_documents' => $processedDocuments,
+                ]
             ]);
         }
 
@@ -451,6 +466,9 @@ class DocumentController extends Controller
                 throw new \Exception("Tidak dapat menemukan approver untuk langkah '{$firstStep->step_name}'. Diperlukan user dengan role '{$roleName}' di unit '{$unitName}'. Silakan hubungi admin untuk menambahkan user dengan role tersebut.");
             }
 
+            // Simpan status asli sebelum update untuk log note
+            $originalStatus = $document->status;
+
             // Update dokumen
             $document->update([
                 'status' => 'IN_PROGRESS',
@@ -459,7 +477,7 @@ class DocumentController extends Controller
             ]);
 
             // Log submit dengan note yang berbeda untuk resubmit
-            $logNote = $document->status === 'REVISION'
+            $logNote = $originalStatus === 'REVISION'
                 ? 'Dokumen diajukan ulang setelah revisi'
                 : 'Dokumen diajukan untuk diproses';
 
@@ -476,9 +494,7 @@ class DocumentController extends Controller
             'success' => true,
             'message' => ($document->fresh()->status === 'APPROVED') 
                 ? 'Dokumen berhasil disubmit dan disetujui secara otomatis'
-                : ($document->status === 'REVISION'
-                    ? 'Dokumen berhasil diajukan ulang setelah revisi dan diteruskan ke approver pertama'
-                    : 'Dokumen berhasil disubmit dan diteruskan ke approver pertama'),
+                : 'Dokumen berhasil disubmit dan diteruskan ke approver pertama',
             'data' => $document->fresh(['currentHolder', 'creator', 'logs'])
         ]);
     }
@@ -861,8 +877,8 @@ class DocumentController extends Controller
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
 
-        // Validasi Status - support both REVISION dan REVISED untuk backward compatibility
-        if (!in_array($document->status, ['DRAFT', 'REVISED', 'REVISION'])) {
+        // Validasi Status
+        if (!in_array($document->status, ['DRAFT', 'REVISION'])) {
             return response()->json(['success' => false, 'message' => 'Dokumen sudah dikunci'], 400);
         }
 
@@ -1027,7 +1043,7 @@ class DocumentController extends Controller
 
         $hasProcessed = DocumentLog::where('document_id', $document->id)
             ->where('user_id', $user->id)
-            ->whereIn('action', ['APPROVED', 'REJECTED', 'SUBMITTED', 'REVISED', 'RETURNED'])
+            ->whereIn('action', ['APPROVED', 'REJECTED', 'SUBMITTED', 'RETURNED'])
             ->exists();
 
         if (!$isAdmin && !$isCreator && !$isCurrentHolder && !$hasProcessed) {

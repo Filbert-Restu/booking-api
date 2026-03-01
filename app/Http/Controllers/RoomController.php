@@ -68,7 +68,7 @@ class RoomController extends Controller
      */
     public function show(Request $request, $id)
     {
-        $room = Room::select('id', 'name', 'code', 'capacity', 'location', 'building', 'floor', 'status', 'facilities', 'images')
+        $room = Room::select('id', 'name', 'code', 'capacity', 'status', 'facilities', 'description', 'images')
             ->findOrFail($id);
 
         // Load upcoming bookings (7 hari ke depan)

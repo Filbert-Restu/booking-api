@@ -18,7 +18,7 @@ class DashboardController extends Controller
             $totalUsers = User::count();
 
             return response()->json([
-                'status' => 'success',
+                'success' => true,
                 'data' => [
                     'pending_approvals' => $pendingApprovals,
                     'active_rooms' => $activeRooms,
@@ -28,7 +28,7 @@ class DashboardController extends Controller
         } catch (\Exception $e) {
             \Log::error('Failed to fetch dashboard stats', ['error' => $e->getMessage()]);
             return response()->json([
-                'status' => 'error',
+                'success' => false,
                 'message' => 'Gagal mengambil data dashboard'
             ], 500);
         }

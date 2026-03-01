@@ -91,7 +91,7 @@ class RoomBookingController extends Controller
     public function show($id)
     {
         $booking = RoomBooking::with([
-            'room.unit',
+            'room',
             'document.workflow',
             'bookedBy.unit',
             'approvedBy',
@@ -301,8 +301,8 @@ class RoomBookingController extends Controller
         if ($request->has(['booking_date', 'start_time', 'end_time']) || $request->has('room_id')) {
             $roomId = $request->room_id ?? $booking->room_id;
             $date = $request->booking_date ?? $booking->booking_date->format('Y-m-d');
-            $startTime = $request->start_time ?? $booking->start_time->format('H:i');
-            $endTime = $request->end_time ?? $booking->end_time->format('H:i');
+            $startTime = $request->start_time ?? substr($booking->start_time, 0, 5);
+            $endTime = $request->end_time ?? substr($booking->end_time, 0, 5);
 
             $room = Room::findOrFail($roomId);
             $isAvailable = $room->isAvailable(
@@ -486,10 +486,9 @@ class RoomBookingController extends Controller
 
         // Cek authorization
         $isAdmin = $user->role->slug === 'admin';
-        $isRoomManager = $booking->room->unit_id === $user->unit_id;
         $isBooker = $booking->booked_by === $user->id;
 
-        if (!$isAdmin && !$isRoomManager && !$isBooker) {
+        if (!$isAdmin && !$isBooker) {
             return response()->json([
                 'success' => false,
                 'message' => 'Anda tidak memiliki akses untuk menyelesaikan booking ini',
@@ -553,16 +552,18 @@ class RoomBookingController extends Controller
         $user = $request->user();
 
         $stats = [
-            'total_bookings' => RoomBooking::count(),
-            'pending_bookings' => RoomBooking::pending()->count(),
-            'approved_bookings' => RoomBooking::approved()->count(),
+            'total' => RoomBooking::count(),
+            'pending' => RoomBooking::pending()->count(),
+            'approved' => RoomBooking::approved()->count(),
+            'rejected' => RoomBooking::where('status', 'REJECTED')->count(),
+            'cancelled' => RoomBooking::where('status', 'CANCELLED')->count(),
+            'completed' => RoomBooking::where('status', 'COMPLETED')->count(),
             'my_bookings' => RoomBooking::where('booked_by', $user->id)->count(),
             'my_pending_bookings' => RoomBooking::where('booked_by', $user->id)->pending()->count(),
         ];
 
-        // Jika user dari unit pengelola ruangan
+        // Unit-level statistics (tanpa unit_id di rooms karena kolom tidak ada)
         if ($user->unit_id) {
-            $stats['unit_rooms_count'] = Room::where('unit_id', $user->unit_id)->count();
             $stats['my_unit_bookings'] = RoomBooking::whereHas('bookedBy', function ($q) use ($user) {
                 $q->where('unit_id', $user->unit_id);
             })->count();

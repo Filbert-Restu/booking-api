@@ -81,8 +81,8 @@ class RoomBooking extends Model
         // Cek apakah ruangan masih available
         if (!$this->room->isAvailable(
             $this->booking_date->format('Y-m-d'),
-            $this->start_time->format('H:i'),
-            $this->end_time->format('H:i'),
+            substr($this->start_time, 0, 5),
+            substr($this->end_time, 0, 5),
             $this->id,
             $this->document_id
         )) {
@@ -171,8 +171,8 @@ class RoomBooking extends Model
     {
         return !$this->room->isAvailable(
             $this->booking_date->format('Y-m-d'),
-            $this->start_time->format('H:i'),
-            $this->end_time->format('H:i'),
+            substr($this->start_time, 0, 5),
+            substr($this->end_time, 0, 5),
             $this->id,
             $this->document_id
         );

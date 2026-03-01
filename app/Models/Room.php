@@ -159,11 +159,5 @@ class Room extends Model
         return $query->where('status', 'ACTIVE');
     }
 
-    /**
-     * Scope untuk ruangan berdasarkan unit
-     */
-    public function scopeByUnit($query, int $unitId)
-    {
-        return $query->where('unit_id', $unitId);
-    }
+    // NOTE: scopeByUnit removed — rooms table has no unit_id column
 }

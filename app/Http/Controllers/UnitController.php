@@ -15,7 +15,7 @@ class UnitController extends Controller
         $user = $request->user();
 
         // Admin bisa lihat semua, user biasa hanya lihat unit mereka dan children
-        if ($user->unit->category === 'FAKULTAS') {
+        if ($user->unit?->category === 'FAKULTAS' || $user->role?->slug === 'admin') {
             $units = Unit::with(['parent', 'children'])->get();
         } else {
             // User biasa hanya lihat unit mereka dan sub-unit
@@ -50,8 +50,9 @@ class UnitController extends Controller
     public function store(Request $request)
     {
         // Pastikan hanya admin yang bisa membuat unit
+        $user = $request->user();
         abort_if(
-            $request->user()->unit->category !== 'FAKULTAS',
+            $user->unit?->category !== 'FAKULTAS' && $user->role?->slug !== 'admin',
             403,
             'Hanya admin yang dapat membuat unit'
         );
@@ -79,8 +80,9 @@ class UnitController extends Controller
     public function update(Request $request, $id)
     {
         // Pastikan hanya admin yang bisa mengupdate unit
+        $user = $request->user();
         abort_if(
-            $request->user()->unit->category !== 'FAKULTAS',
+            $user->unit?->category !== 'FAKULTAS' && $user->role?->slug !== 'admin',
             403,
             'Hanya admin yang dapat mengupdate unit'
         );
@@ -108,8 +110,9 @@ class UnitController extends Controller
     public function destroy(Request $request, $id)
     {
         // Pastikan hanya admin yang bisa menghapus unit
+        $user = $request->user();
         abort_if(
-            $request->user()->unit->category !== 'FAKULTAS',
+            $user->unit?->category !== 'FAKULTAS' && $user->role?->slug !== 'admin',
             403,
             'Hanya admin yang dapat menghapus unit'
         );

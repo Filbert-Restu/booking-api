@@ -24,7 +24,7 @@ class UserController extends Controller
         $query = User::with(['role', 'unit']);
 
         // Admin bisa lihat semua, user biasa hanya lihat user di unit yang sama
-        if ($user->unit->category !== 'FAKULTAS') {
+        if ($user->unit?->category !== 'FAKULTAS' && $user->role?->slug !== 'admin') {
             $query->where('unit_id', $user->unit_id);
         }
 

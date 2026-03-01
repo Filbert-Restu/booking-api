@@ -39,8 +39,9 @@ class RoleController extends Controller
     public function store(Request $request)
     {
         // Pastikan hanya admin yang bisa membuat role
+        $user = $request->user();
         abort_if(
-            $request->user()->unit->category !== 'FAKULTAS',
+            $user->unit?->category !== 'FAKULTAS' && $user->role?->slug !== 'admin',
             403,
             'Hanya admin yang dapat membuat role'
         );
@@ -66,8 +67,9 @@ class RoleController extends Controller
     public function update(Request $request, $id)
     {
         // Pastikan hanya admin yang bisa mengupdate role
+        $user = $request->user();
         abort_if(
-            $request->user()->unit->category !== 'FAKULTAS',
+            $user->unit?->category !== 'FAKULTAS' && $user->role?->slug !== 'admin',
             403,
             'Hanya admin yang dapat mengupdate role'
         );
@@ -95,8 +97,9 @@ class RoleController extends Controller
     public function destroy(Request $request, $id)
     {
         // Pastikan hanya admin yang bisa menghapus role
+        $user = $request->user();
         abort_if(
-            $request->user()->unit->category !== 'FAKULTAS',
+            $user->unit?->category !== 'FAKULTAS' && $user->role?->slug !== 'admin',
             403,
             'Hanya admin yang dapat menghapus role'
         );
