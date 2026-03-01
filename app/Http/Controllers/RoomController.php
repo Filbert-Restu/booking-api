@@ -338,7 +338,7 @@ class RoomController extends Controller
             ], 422);
         }
 
-        $room = Room::select('id', 'name', 'code', 'capacity', 'location')
+        $room = Room::select('id', 'name', 'code', 'capacity')
             ->findOrFail($id);
 
         $bookings = RoomBooking::with([

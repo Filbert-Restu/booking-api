@@ -80,6 +80,18 @@ class DocumentTemplateController extends Controller
             $fileName = time() . '_' . $request->template_type . '_' . $file->getClientOriginalName();
             $path = $file->storeAs('document-templates', $fileName, 'private');
 
+            // storeAs() mengembalikan false jika upload gagal (throw:false di config)
+            if ($path === false || empty($path)) {
+                // Log error details dari exception terakhir Flysystem (jika ada)
+                \Log::error('[TemplateStore] storeAs() failed', [
+                    'fileName' => $fileName,
+                    'disk' => 'private',
+                    'bucket' => config('filesystems.disks.private.bucket'),
+                    'endpoint' => config('filesystems.disks.private.endpoint'),
+                ]);
+                throw new \RuntimeException('Gagal mengupload file ke storage. Periksa koneksi MinIO/S3.');
+            }
+
             // Generate URL
             $fileUrl = Storage::disk('private')->url($path);
 
@@ -88,7 +100,8 @@ class DocumentTemplateController extends Controller
                                             ->max('version') ?? 0;
 
             // Extract placeholders from DOCX
-            $fullPath = Storage::disk('private')->path($path);
+            // Gunakan path temp file dari request (bukan Storage::path() yang tidak bekerja untuk S3/MinIO)
+            $fullPath = $file->getRealPath();
             $detectedPlaceholders = PlaceholderExtractor::extractFromDocx($fullPath);
             $placeholderMetadata = PlaceholderExtractor::buildMetadata($detectedPlaceholders);
 
@@ -141,9 +154,18 @@ class DocumentTemplateController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
 
-            // Delete uploaded file if exists
-            if (isset($path) && Storage::disk('private')->exists($path)) {
-                Storage::disk('private')->delete($path);
+            // Delete uploaded file if exists — bungkus try-catch agar tidak crash jika MinIO error
+            if (is_string($path) && !empty($path)) {
+                try {
+                    if (Storage::disk('private')->exists($path)) {
+                        Storage::disk('private')->delete($path);
+                    }
+                } catch (\Exception $cleanupEx) {
+                    \Log::warning('[TemplateStore] Gagal menghapus file saat rollback', [
+                        'file_path' => $path,
+                        'error' => $cleanupEx->getMessage()
+                    ]);
+                }
             }
 
             return response()->json([
@@ -210,9 +232,19 @@ class DocumentTemplateController extends Controller
 
             // Update file if provided
             if ($request->hasFile('file')) {
-                // Delete old file
-                if ($template->file_path && Storage::disk('private')->exists($template->file_path)) {
-                    Storage::disk('private')->delete($template->file_path);
+                // Delete old file — wrapped in try-catch agar tidak crash jika MinIO error
+                if (!empty($template->file_path)) {
+                    try {
+                        if (Storage::disk('private')->exists($template->file_path)) {
+                            Storage::disk('private')->delete($template->file_path);
+                        }
+                    } catch (\Exception $deleteEx) {
+                        // Log warning tapi jangan stop proses update
+                        \Log::warning('[TemplateUpdate] Gagal menghapus file lama dari storage', [
+                            'file_path' => $template->file_path,
+                            'error' => $deleteEx->getMessage()
+                        ]);
+                    }
                 }
 
                 // Upload new file
@@ -220,11 +252,17 @@ class DocumentTemplateController extends Controller
                 $fileName = time() . '_' . $template->template_type . '_' . $file->getClientOriginalName();
                 $path = $file->storeAs('document-templates', $fileName, 'private');
 
+                // storeAs() mengembalikan false jika upload gagal (karena throw:false di config)
+                if ($path === false || empty($path)) {
+                    throw new \RuntimeException('Gagal mengupload file ke storage. Periksa koneksi MinIO/S3.');
+                }
+
                 $updateData['file_path'] = $path;
                 $updateData['file_url'] = Storage::disk('private')->url($path);
 
                 // Extract placeholders from new file
-                $fullPath = Storage::disk('private')->path($path);
+                // Gunakan path temp file dari request (bukan Storage::path() yang tidak bekerja untuk S3/MinIO)
+                $fullPath = $file->getRealPath();
                 $detectedPlaceholders = PlaceholderExtractor::extractFromDocx($fullPath);
                 $placeholderMetadata = PlaceholderExtractor::buildMetadata($detectedPlaceholders);
 
@@ -292,9 +330,18 @@ class DocumentTemplateController extends Controller
         }
 
         try {
-            // Delete file
-            if ($template->file_path && Storage::disk('private')->exists($template->file_path)) {
-                Storage::disk('private')->delete($template->file_path);
+            // Delete file — wrapped in try-catch agar tidak crash jika MinIO error
+            if ($template->file_path) {
+                try {
+                    if (Storage::disk('private')->exists($template->file_path)) {
+                        Storage::disk('private')->delete($template->file_path);
+                    }
+                } catch (\Exception $deleteEx) {
+                    \Log::warning('[TemplateDelete] Gagal menghapus file dari storage', [
+                        'file_path' => $template->file_path,
+                        'error' => $deleteEx->getMessage()
+                    ]);
+                }
             }
 
             $template->delete();
@@ -409,11 +456,24 @@ class DocumentTemplateController extends Controller
         }
 
         // Use 'private' disk to access app/ folder (not app/private/)
-        if (!Storage::disk('private')->exists($template->file_path)) {
+        if (empty($template->file_path)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Template file not found'
+                'message' => 'Template file path tidak tersedia'
             ], 404);
+        }
+        try {
+            if (!Storage::disk('private')->exists($template->file_path)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Template file not found'
+                ], 404);
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengecek ketersediaan file: ' . $e->getMessage()
+            ], 500);
         }
 
         return Storage::disk('private')->download($template->file_path, $template->template_name . '.docx');
@@ -435,11 +495,24 @@ class DocumentTemplateController extends Controller
         }
 
         // Use 'private' disk to access app/ folder (not app/private/)
-        if (!Storage::disk('private')->exists($template->file_path)) {
+        if (empty($template->file_path)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Template file not found'
+                'message' => 'Template file path tidak tersedia'
             ], 404);
+        }
+        try {
+            if (!Storage::disk('private')->exists($template->file_path)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Template file not found'
+                ], 404);
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengecek ketersediaan file: ' . $e->getMessage()
+            ], 500);
         }
 
         try {

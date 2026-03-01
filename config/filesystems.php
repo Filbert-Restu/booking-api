@@ -70,6 +70,15 @@ return [
             'endpoint' => env('AWS_ENDPOINT'),
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
             'visibility' => 'private', // Pastikan visibility private
+            'throw' => false,  // Jangan throw exception, return false/null jika gagal
+            'report' => false, // Jangan report ke log secara otomatis
+            'options' => [
+                // Timeout agar tidak hang jika MinIO lambat
+                '@http' => [
+                    'timeout' => 30,
+                    'connect_timeout' => 10,
+                ],
+            ],
         ],
 
     ],
