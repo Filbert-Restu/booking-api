@@ -87,6 +87,14 @@ class Room extends Model
             $query->where('id', '!=', $excludeBookingId);
         }
 
+        // Exclude bookings belonging to the document being edited (e.g. REVISION mode)
+        if ($excludeDocumentId) {
+            $query->where(function ($q) use ($excludeDocumentId) {
+                $q->whereNull('document_id')
+                  ->orWhere('document_id', '!=', $excludeDocumentId);
+            });
+        }
+
         $bookingConflicts = $query->get();
 
         // Check 2: Documents in workflow (IN_PROGRESS, REVISION) with room reservation
