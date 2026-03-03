@@ -25,7 +25,7 @@ class UserSeeder extends Seeder
         $roleKetuaOrmawa = Role::where('slug', 'ketua-ormawa')->first();
         $roleSekretaris = Role::where('slug', 'sekretaris')->first();
         $roleSenat = Role::where('slug', 'senat')->first();
-        $rolePeminjam = Role::where('slug', 'peminjam')->first();
+        $this->command->info('👤 Seeding Users...');
 
         $fakultas = Unit::where('code', 'FSM')->first();
         $deptStat = Unit::where('code', 'STAT')->first();
@@ -113,13 +113,15 @@ class UserSeeder extends Seeder
             ['name' => 'Wawan Setiadi', 'email' => 'sekretaris.hmk@student.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleSekretaris->id, 'unit_id' => $hmk->id, 'nim_nip' => '24060121130005'],
             ['name' => 'Yuni Astuti', 'email' => 'sekretaris.hmb@student.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleSekretaris->id, 'unit_id' => $hmb->id, 'nim_nip' => '24060121130006'],
 
-            // Sekretaris BEM & Peminjam
+            // Sekretaris BEM, Senat & UKM
             ['name' => 'Putri Maharani', 'email' => 'sekretaris.bem@student.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleSekretaris->id, 'unit_id' => $bem->id, 'nim_nip' => '24060121130007'],
-            ['name' => 'Rudi Hartono', 'email' => 'mahasiswa1@student.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $rolePeminjam->id, 'unit_id' => $hmif->id, 'nim_nip' => '24060122140001'],
-            ['name' => 'Fitri Handayani', 'email' => 'mahasiswa2@student.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $rolePeminjam->id, 'unit_id' => $himasta->id, 'nim_nip' => '24060122140002'],
-            ['name' => 'Siapa', 'email' => 'mahasiswa3@student.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $rolePeminjam->id, 'unit_id' => $bem->id, 'nim_nip' => '24060122140003'],
-            ['name' => 'Siapa', 'email' => 'mahasiswa4@student.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $rolePeminjam->id, 'unit_id' => $vosc->id, 'nim_nip' => '24060122140004'],
-            ['name' => 'Siapa', 'email' => 'mahasiswa5@student.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $rolePeminjam->id, 'unit_id' => $senat->id, 'nim_nip' => '24060122140005'],
+            ['name' => 'Zahra Amelia', 'email' => 'sekretaris.senat@student.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleSekretaris->id, 'unit_id' => $senat->id, 'nim_nip' => '24060121130008'],
+            ['name' => 'Aisyah Putri', 'email' => 'sekretaris.madani@student.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleSekretaris->id, 'unit_id' => $madani->id, 'nim_nip' => '24060121130009'],
+            ['name' => 'Bella Safitri', 'email' => 'sekretaris.pkm@student.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleSekretaris->id, 'unit_id' => $pkm->id, 'nim_nip' => '24060121130010'],
+            ['name' => 'Cinta Ramadhani', 'email' => 'sekretaris.prmk@student.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleSekretaris->id, 'unit_id' => $prmk->id, 'nim_nip' => '24060121130011'],
+            ['name' => 'Diana Sari', 'email' => 'sekretaris.ric@student.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleSekretaris->id, 'unit_id' => $ric->id, 'nim_nip' => '24060121130012'],
+            ['name' => 'Eva Nurhasanah', 'email' => 'sekretaris.potlot@student.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleSekretaris->id, 'unit_id' => $potlot->id, 'nim_nip' => '24060121130013'],
+            ['name' => 'Fania Dewi', 'email' => 'sekretaris.vosc@student.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleSekretaris->id, 'unit_id' => $vosc->id, 'nim_nip' => '24060121130014'],
         ];
 
         foreach ($userData as $user) {

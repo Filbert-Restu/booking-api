@@ -43,6 +43,9 @@ if (app()->environment('local', 'development')) {
     });
 }
 
+// Public Room Image Route (Accessed by <img> tags)
+Route::get('/rooms/{id}/image', 'App\Http\Controllers\RoomController@serveImage')->name('api.rooms.image');
+
 // Routes yang membutuhkan autentikasi
 Route::middleware('auth:sanctum')->group(function () {
 
@@ -175,7 +178,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{id}', [RoomController::class, 'show']);
         Route::post('/{id}/check-availability', [RoomController::class, 'checkAvailability']);
         Route::get('/{id}/schedule', [RoomController::class, 'schedule']);
-        Route::get('/{id}/image', [RoomController::class, 'serveImage'])->name('api.rooms.image');
     });
 
     // Room Booking Routes

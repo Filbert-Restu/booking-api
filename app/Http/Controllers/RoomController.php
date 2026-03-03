@@ -26,7 +26,7 @@ class RoomController extends Controller
     public function index(Request $request)
     {
         $query = Room::query()
-            ->select('id', 'name', 'code', 'capacity', 'status', 'facilities');
+            ->select('id', 'name', 'code', 'capacity', 'status', 'facilities', 'description', 'images');
 
         if ($request->has('status')) {
             $query->where('status', $request->status);

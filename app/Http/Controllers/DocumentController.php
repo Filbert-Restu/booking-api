@@ -453,30 +453,10 @@ class DocumentController extends Controller
                 throw new \Exception('Workflow tidak memiliki langkah');
             }
 
-            // Cari approver pertama
-            $firstApprover = $this->workflowEngine->findApprover($document, $firstStep);
-
-            if (!$firstApprover) {
-                // FALLBACK: Jika tidak ada users dengan role yang sesuai di unit yang sesuai
-                // Kita coba cari user dengan role ketua-ormawa di unit pembuat dokumen
-                // ATAU throw error yang lebih deskriptif
-                $roleName = $firstStep->target_role_slug;
-                $unitName = $document->unit->name ?? 'Unknown Unit';
-                
-                throw new \Exception("Tidak dapat menemukan approver untuk langkah '{$firstStep->step_name}'. Diperlukan user dengan role '{$roleName}' di unit '{$unitName}'. Silakan hubungi admin untuk menambahkan user dengan role tersebut.");
-            }
-
             // Simpan status asli sebelum update untuk log note
             $originalStatus = $document->status;
 
-            // Update dokumen
-            $document->update([
-                'status' => 'IN_PROGRESS',
-                'current_step_order' => 1,
-                'current_holder_id' => $firstApprover->id,
-            ]);
-
-            // Log submit dengan note yang berbeda untuk resubmit
+            // Log submit
             $logNote = $originalStatus === 'REVISION'
                 ? 'Dokumen diajukan ulang setelah revisi'
                 : 'Dokumen diajukan untuk diproses';
@@ -488,13 +468,89 @@ class DocumentController extends Controller
                 'note' => $logNote,
                 'step_snapshot' => 0,
             ]);
+
+            // ============================================
+            // AUTO-APPROVE STEP 1 JIKA SUBMITTER ADALAH SEKRETARIS
+            // ============================================
+            if ($userRole === 'sekretaris' && $firstStep->target_role_slug === 'sekretaris') {
+                \Log::info('[DocumentController] Sekretaris auto-approve Step 1', [
+                    'document_id' => $document->id,
+                    'user' => $user->name,
+                ]);
+
+                // Catat log APPROVED untuk Step 1
+                DocumentLog::create([
+                    'document_id' => $document->id,
+                    'user_id' => $user->id,
+                    'action' => 'APPROVED',
+                    'note' => 'Pengajuan oleh Sekretaris (auto-approve)',
+                    'step_snapshot' => 1,
+                ]);
+
+                // Simpan tanda tangan Sekretaris jika ada
+                $sign = Sign::where('user_id', $user->id)->latest()->first();
+                if ($sign && $sign->signature) {
+                    // Tanda tangan sudah ada di database, akan digunakan saat regenerate dokumen
+                    \Log::info('[DocumentController] Sekretaris signature found', [
+                        'sign_id' => $sign->id,
+                    ]);
+                }
+
+                // Cari Step 2 dan approver-nya
+                $secondStep = $document->workflow->steps()->where('step_order', 2)->first();
+
+                if (!$secondStep) {
+                    // Jika tidak ada Step 2 (tidak mungkin, tapi safety check)
+                    $document->update([
+                        'status' => 'APPROVED',
+                        'completed_at' => now(),
+                        'current_holder_id' => null,
+                        'current_step_order' => 1,
+                    ]);
+                    return;
+                }
+
+                $secondApprover = $this->workflowEngine->findApprover($document, $secondStep);
+
+                if (!$secondApprover) {
+                    throw new \Exception("Tidak dapat menemukan approver untuk langkah '{$secondStep->step_name}'.");
+                }
+
+                // Update dokumen langsung ke Step 2
+                $document->update([
+                    'status' => 'IN_PROGRESS',
+                    'current_step_order' => 2,
+                    'current_holder_id' => $secondApprover->id,
+                ]);
+
+                return;
+            }
+
+            // ============================================
+            // ALUR NORMAL (non-Sekretaris submitter)
+            // ============================================
+            $firstApprover = $this->workflowEngine->findApprover($document, $firstStep);
+
+            if (!$firstApprover) {
+                $roleName = $firstStep->target_role_slug;
+                $unitName = $document->unit->name ?? 'Unknown Unit';
+                
+                throw new \Exception("Tidak dapat menemukan approver untuk langkah '{$firstStep->step_name}'. Diperlukan user dengan role '{$roleName}' di unit '{$unitName}'. Silakan hubungi admin untuk menambahkan user dengan role tersebut.");
+            }
+
+            // Update dokumen
+            $document->update([
+                'status' => 'IN_PROGRESS',
+                'current_step_order' => 1,
+                'current_holder_id' => $firstApprover->id,
+            ]);
         });
 
         return response()->json([
             'success' => true,
             'message' => ($document->fresh()->status === 'APPROVED') 
                 ? 'Dokumen berhasil disubmit dan disetujui secara otomatis'
-                : 'Dokumen berhasil disubmit dan diteruskan ke approver pertama',
+                : 'Dokumen berhasil disubmit dan diteruskan ke approver',
             'data' => $document->fresh(['currentHolder', 'creator', 'logs'])
         ]);
     }
