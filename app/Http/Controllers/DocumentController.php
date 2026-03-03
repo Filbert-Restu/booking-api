@@ -952,11 +952,51 @@ class DocumentController extends Controller
 
         $document->update($dataToUpdate);
 
+        // --- AUTO REGENERATE LOGIC ---
+        // If content was updated, regenerate the files from template
+        if ($request->has('content')) {
+            try {
+                // Refresh document to get full updated content array
+                $document->refresh();
+
+                // 1. Regenerate/Generate Executive Summary
+                try {
+                    $newPathExec = $this->documentGenerationService->generateFromTemplate(
+                        $document, 
+                        'executive_summary'
+                    );
+                    $document->update(['file_executive_summary' => $newPathExec]);
+                } catch (\Exception $ex) {
+                    \Log::warning('Skip auto-gen Executive Summary: ' . $ex->getMessage());
+                }
+
+                // 2. Regenerate/Generate Lembar Pengesahan
+                try {
+                    $orgType = $this->mapCategoryToOrganizationType($document->unit->category ?? 'HMD');
+                    $newPathApp = $this->documentGenerationService->generateFromTemplate(
+                        $document, 
+                        'lembar_pengesahan',
+                        $orgType
+                    );
+                    $document->update(['file_approval_sheet' => $newPathApp]);
+                } catch (\Exception $ex) {
+                    \Log::warning('Skip auto-gen Approval Sheet: ' . $ex->getMessage());
+                }
+
+                \Log::info('Documents auto-regenerated after update', ['document_id' => $document->id]);
+            } catch (\Exception $e) {
+                \Log::error('Auto-regeneration failed in update', [
+                    'document_id' => $document->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+
         DocumentLog::create([
             'document_id' => $document->id,
             'user_id'     => $user->id,
             'action'      => 'UPDATED',
-            'note'        => 'Dokumen dan lampiran diperbarui',
+            'note'        => 'Dokumen diperbarui dan file di-generate ulang',
         ]);
 
         return response()->json([
