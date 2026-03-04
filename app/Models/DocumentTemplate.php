@@ -69,8 +69,9 @@ class DocumentTemplate extends Model
      */
     public function setAsActive()
     {
-        // Non-aktifkan semua template dengan tipe yang sama
+        // Non-aktifkan semua template dengan tipe yang sama DAN organisasi yang sama
         static::where('template_type', $this->template_type)
+              ->where('organization_type', $this->organization_type)
               ->where('id', '!=', $this->id)
               ->update(['is_active' => false]);
 

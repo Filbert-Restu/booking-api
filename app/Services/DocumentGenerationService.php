@@ -204,6 +204,13 @@ class DocumentGenerationService
                 ->first();
         }
 
+        \Log::info("Using template", [
+            'id' => $template->id,
+            'name' => $template->template_name,
+            'type' => $template->template_type,
+            'org_type' => $template->organization_type
+        ]);
+
         return $template;
     }
 
@@ -770,15 +777,27 @@ class DocumentGenerationService
         $roleToPlaceholder = [
             'ketua-ormawa' => [
                 'nama' => ['nama_ketua_ormawa', 'NAMA_KETUA_ORMAWA'],
-                'nip_nim' => ['nim_ketua_ormawa', 'NIM_KETUA_ORMAWA', 'NIM']
+                'nip_nim' => ['nim_ketua_ormawa', 'NIM_KETUA_ORMAWA', 'nim_ketuapanitia', 'NIM']
+            ],
+            'sekretaris' => [
+                'nama' => ['nama_sekretaris', 'NAMA_SEKRETARIS'],
+                'nip_nim' => ['nim_sekretaris', 'NIM_SEKRETARIS', 'NIM']
             ],
             'dosen-pendamping' => [
                 'nama' => ['nama_dosen_pendamping', 'NAMA_DOSEN_PENDAMPING'],
                 'nip_nim' => ['nip_dosen_pendamping', 'NIP_DOSEN_PENDAMPING', 'NIP']
             ],
             'senat' => [
-                'nama' => ['nama_ketua_senat', 'NAMA_KETUA_SENAT'],
-                'nip_nim' => ['nim_ketua_senat', 'NIM_KETUA_SENAT', 'NIM']
+                'nama' => ['nama_ketua_senat', 'NAMA_KETUA_SENAT', 'nama_ketuasenat'],
+                'nip_nim' => ['nim_ketua_senat', 'NIM_KETUA_SENAT', 'nim_ketuasenat', 'NIM']
+            ],
+            'kemahasiswaan' => [
+                'nama' => ['nama_kemahasiswaan', 'NAMA_KEMAHASISWAAN'],
+                'nip_nim' => ['nip_kemahasiswaan', 'NIP_KEMAHASISWAAN', 'NIP']
+            ],
+            'sumber-daya' => [
+                'nama' => ['nama_sumber_daya', 'NAMA_SUMBER_DAYA'],
+                'nip_nim' => ['nip_sumber_daya', 'NIP_SUMBER_DAYA', 'NIP']
             ],
             'wadek1' => [
                 'nama' => ['nama_wadek1', 'NAMA_WADEK1'],
@@ -794,31 +813,65 @@ class DocumentGenerationService
             try {
                 $approver = $workflowEngine->findApprover($document, $step);
 
-                if ($approver && isset($roleToPlaceholder[$step->target_role_slug])) {
-                    $placeholders = $roleToPlaceholder[$step->target_role_slug];
+                if ($approver) {
+                    $roleSlug = $step->target_role_slug;
+                    $unit = $approver->unit;
 
-                    // Fill all nama variants
-                    foreach ($placeholders['nama'] as $namaPlaceholder) {
-                        $data[$namaPlaceholder] = $approver->name;
+                    // --- SPECIAL MAPPING FOR SENAT UNIT ---
+                    // If unit category is SENAT, we map ketua-ormawa and sekretaris specifically
+                    if ($unit && strtoupper($unit->category) === 'SENAT') {
+                        if ($roleSlug === 'ketua-ormawa' || $roleSlug === 'senat') {
+                            $data['nama_ketua_senat'] = $approver->name;
+                            $data['nama_ketuasenat'] = $approver->name;
+                            $data['nim_ketua_senat'] = $approver->nim_nip ?? '____________________';
+                            $data['nim_ketuasenat'] = $approver->nim_nip ?? '____________________';
+                        } elseif ($roleSlug === 'sekretaris') {
+                            $data['nama_sekretaris_senat'] = $approver->name;
+                            $data['nim_sekretaris_senat'] = $approver->nim_nip ?? '____________________';
+                        }
                     }
 
-                    // Use NIM/NIP from nim_nip field
-                    // nim_nip field contains either NIM (for students) or NIP (for staff)
-                    $nim_nip = $approver->nim_nip ?? '____________________';
+                    // --- AUTOMATIC PAIRING LOGIC (FIND SEKRETARIS) ---
+                    // If we find a Ketua, automatically try to find the Sekretaris in the same unit
+                    if ($roleSlug === 'ketua-ormawa' || $roleSlug === 'senat') {
+                        $sekretaris = \App\Models\User::where('unit_id', $approver->unit_id)
+                            ->whereHas('role', function($q) { $q->where('slug', 'sekretaris'); })
+                            ->first();
 
-                    // Fill all nip_nim variants
-                    foreach ($placeholders['nip_nim'] as $nipNimPlaceholder) {
-                        $data[$nipNimPlaceholder] = $nim_nip;
+                        if ($sekretaris) {
+                            $prefix = (strtoupper($unit->category ?? '') === 'SENAT') ? 'sekretaris_senat' : 'sekretaris_ormawa';
+                            $data["nama_{$prefix}"] = $sekretaris->name;
+                            $data["nim_{$prefix}"] = $sekretaris->nim_nip ?? '____________________';
+
+                            \Log::info("[fillApproverData] Paired Sekretaris found for unit", [
+                                'unit' => $unit->name ?? 'Unknown',
+                                'sekretaris_name' => $sekretaris->name
+                            ]);
+                        }
                     }
 
-                    \Log::info("[fillApproverData] Approver found", [
+                    // --- STANDARD MAPPING ---
+                    if (isset($roleToPlaceholder[$roleSlug])) {
+                        $placeholders = $roleToPlaceholder[$roleSlug];
+
+                        // Fill all nama variants
+                        foreach ($placeholders['nama'] as $namaPlaceholder) {
+                            $data[$namaPlaceholder] = $approver->name;
+                        }
+
+                        // Use NIM/NIP from nim_nip field
+                        $nim_nip = $approver->nim_nip ?? '____________________';
+
+                        // Fill all nip_nim variants
+                        foreach ($placeholders['nip_nim'] as $nipNimPlaceholder) {
+                            $data[$nipNimPlaceholder] = $nim_nip;
+                        }
+                    }
+
+                    \Log::info("[fillApproverData] Approver found and mapped", [
                         'step' => $step->step_name,
-                        'role' => $step->target_role_slug,
-                        'approver_id' => $approver->id,
-                        'approver_name' => $approver->name,
-                        'nim_nip' => $nim_nip,
-                        'filled_nama_variants' => count($placeholders['nama']),
-                        'filled_nip_nim_variants' => count($placeholders['nip_nim'])
+                        'role' => $roleSlug,
+                        'approver_name' => $approver->name
                     ]);
                 }
             } catch (\Exception $e) {
@@ -853,15 +906,23 @@ class DocumentGenerationService
      */
     protected function setDefaultApproverPlaceholders(array &$data): void
     {
-        $data['nama_ketuaormawa'] = '____________________';
-        $data['nim_ketuaormawa'] = '____________________';
-        $data['nama_dosenpendamping'] = '____________________';
-        $data['nip_dosenpendamping'] = '____________________';
-        $data['nama_ketuasenat'] = '____________________';
-        $data['nim_ketuasenat'] = '____________________';
-        $data['nama_wadek1'] = '____________________';
-        $data['nip_wadek1'] = '____________________';
-        $data['nama_ketuadepartemen'] = '____________________';
-        $data['nip_ketuadepartemen'] = '____________________';
+        $placeholders = [
+            'nama_ketuaormawa', 'nim_ketuaormawa', 'nama_ketua_ormawa', 'nim_ketua_ormawa',
+            'nama_sekretaris_ormawa', 'nim_sekretaris_ormawa',
+            'nama_dosenpendamping', 'nip_dosenpendamping', 'nama_dosen_pendamping', 'nip_dosen_pendamping',
+            'nama_ketuasenat', 'nim_ketuasenat', 'nama_ketua_senat', 'nim_ketua_senat',
+            'nama_sekretaris_senat', 'nim_sekretaris_senat',
+            'nama_wadek1', 'nip_wadek1',
+            'nama_ketuadepartemen', 'nip_ketuadepartemen', 'nama_ketua_departemen', 'nip_ketua_departemen',
+            'nama_kemahasiswaan', 'nip_kemahasiswaan',
+            'nama_sumber_daya', 'nip_sumber_daya',
+            'nama_sekretaris', 'nim_sekretaris'
+        ];
+
+        foreach ($placeholders as $p) {
+            if (!isset($data[$p])) {
+                $data[$p] = '____________________';
+            }
+        }
     }
 }

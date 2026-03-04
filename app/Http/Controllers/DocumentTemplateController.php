@@ -434,19 +434,14 @@ class DocumentTemplateController extends Controller
      */
     public function getActiveTemplates()
     {
-        // Get all active templates grouped by template_type
+        // Get all active templates
         $templates = DocumentTemplate::where('is_active', true)
             ->with('uploader:id,name,email')
             ->get();
 
-        $grouped = $templates->keyBy('template_type');
-
         return response()->json([
             'success' => true,
-            'data' => [
-                'executive_summary' => $grouped->get('executive_summary'),
-                'lembar_pengesahan' => $grouped->get('lembar_pengesahan'),
-            ]
+            'data' => $templates
         ]);
     }
 

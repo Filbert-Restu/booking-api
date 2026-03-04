@@ -757,10 +757,11 @@ class DocumentController extends Controller
             // the placeholder ${ttd_xxx} no longer exists (it's now an image)
             \Log::debug("ApplySignature: Regenerating {$type} from template");
 
+            $orgType = $this->mapCategoryToOrganizationType($document->unit->category ?? 'HMD');
             $newFilePath = $this->documentGenerationService->generateFromTemplate(
                 $document,
                 $templateType,
-                null
+                $orgType
             );
 
             // Update document with new file path
@@ -1428,10 +1429,11 @@ class DocumentController extends Controller
 
         try {
             // Generate document
+            $orgType = $this->mapCategoryToOrganizationType($document->unit->category ?? 'HMD');
             $filePath = $this->documentGenerationService->generateFromTemplate(
                 $document,
                 'executive_summary',
-                null
+                $orgType
             );
 
             // Update document record
@@ -1474,11 +1476,12 @@ class DocumentController extends Controller
         }
 
         try {
-            // Generate document (no organization_type needed, use general template)
+            // Generate document (using organization-specific template)
+            $orgType = $this->mapCategoryToOrganizationType($document->unit->category ?? 'HMD');
             $filePath = $this->documentGenerationService->generateFromTemplate(
                 $document,
                 'lembar_pengesahan',
-                null  // No organization_type filter - use general template
+                $orgType
             );
 
             // Update document record

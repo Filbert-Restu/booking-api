@@ -201,6 +201,10 @@ class WorkflowEngine
 
         $approver = null;
 
+        // --- PRE-QUERY FALLBACK LOGIC ---
+        // If target role is 'senat', we first try to find the user with slug 'senat'.
+        // If that fails, we will try 'ketua-ormawa' as a fallback within the logic below.
+
         switch ($step->scope_type) {
             case 'SELF':
                 // Cari di unit pengirim (HIMA)
@@ -251,22 +255,30 @@ class WorkflowEngine
 
             case 'SPECIFIC_CATEGORY':
                 // Cari Unit lain (Misal: SENAT)
-                // Asumsi: Kita cari unit 'SENAT' yang satu fakultas/kampus
                 if (!$step->target_category_lookup) {
                     throw new \Exception("target_category_lookup tidak didefinisikan untuk step dengan scope SPECIFIC_CATEGORY.");
                 }
-                // Case-insensitive search untuk menghindari mismatch 'Senat' vs 'SENAT'
+
                 $targetUnit = Unit::whereRaw('LOWER(category) = ?', [strtolower($step->target_category_lookup)])->first();
                 if (!$targetUnit) {
-                    throw new \Exception("Unit dengan category {$step->target_category_lookup} tidak ditemukan. Pastikan unit sudah dibuat di database.");
+                    throw new \Exception("Unit dengan category {$step->target_category_lookup} tidak ditemukan.");
                 }
+
+                // 1. Try with the original slug
                 $approver = $query->where('unit_id', $targetUnit->id)->first();
+
+                // 2. FALLBACK: If slug is 'senat' but not found, try 'ketua-ormawa' in the same unit
+                if (!$approver && $step->target_role_slug === 'senat') {
+                    \Log::info("[WorkflowEngine] Fallback: 'senat' role not found, trying 'ketua-ormawa' for unit: " . $targetUnit->name);
+                    $approver = User::where('unit_id', $targetUnit->id)
+                                    ->whereHas('role', function($q) { $q->where('slug', 'ketua-ormawa'); })
+                                    ->first();
+                }
 
                 if (!$approver) {
                     throw new \Exception(
                         "Tidak dapat menemukan approver untuk langkah '{$step->step_name}'. " .
-                        "Diperlukan user dengan role '{$step->target_role_slug}' di unit '{$targetUnit->name}'. " .
-                        "Silakan hubungi admin untuk menambahkan user dengan role tersebut."
+                        "Diperlukan user dengan role '{$step->target_role_slug}' di unit '{$targetUnit->name}'."
                     );
                 }
                 return $approver;

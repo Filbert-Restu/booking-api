@@ -78,11 +78,12 @@ class UserSeeder extends Seeder
             ['name' => 'Dr. Maya Sari', 'email' => 'dospend.hmb@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleDosenPendamping->id, 'unit_id' => $hmb->id, 'nim_nip' => '198012202006042002'],
 
             // Dosen Pendamping UKM
-            ['name' => 'Dr. Abdullah Aziz', 'email' => 'dospend.madani@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleDosenPendamping->id, 'unit_id' => $madani->id, 'nim_nip' => '198208102008121003'],
-            ['name' => 'Dr. Petrus Santoso', 'email' => 'dospend.pkm@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleDosenPendamping->id, 'unit_id' => $pkm->id, 'nim_nip' => '197905152005011002'],
-            ['name' => 'Dr. Maria Kristina', 'email' => 'dospend.prmk@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleDosenPendamping->id, 'unit_id' => $prmk->id, 'nim_nip' => '198306252009122001'],
-            ['name' => 'Dr. Bambang Rianto', 'email' => 'dospend.ric@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleDosenPendamping->id, 'unit_id' => $ric->id, 'nim_nip' => '198007102007011001'],
-            ['name' => 'Dr. Susi Purnama', 'email' => 'dospend.potlot@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleDosenPendamping->id, 'unit_id' => $potlot->id, 'nim_nip' => '198511202011122001'],
+            ['name' => 'Dr. Dosen Pembimbing BEM', 'email' => 'dospend.bemf@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleDosenPendamping->id, 'unit_id' => $bem->id, 'nim_nip' => '198208102008121004'],
+            ['name' => 'Dr. Abdullah Aziz', 'email' => 'dospend.madani@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleDosenPendamping->id, 'unit_id' => $madani->id, 'nim_nip' => '198208102008121005'],
+            ['name' => 'Dr. Petrus Santoso', 'email' => 'dospend.pkm@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleDosenPendamping->id, 'unit_id' => $pkm->id, 'nim_nip' => '197905152005011006'],
+            ['name' => 'Dr. Maria Kristina', 'email' => 'dospend.prmk@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleDosenPendamping->id, 'unit_id' => $prmk->id, 'nim_nip' => '198306252009122007'],
+            ['name' => 'Dr. Bambang Rianto', 'email' => 'dospend.ric@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleDosenPendamping->id, 'unit_id' => $ric->id, 'nim_nip' => '198007102007011008'],
+            ['name' => 'Dr. Susi Purnama', 'email' => 'dospend.potlot@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleDosenPendamping->id, 'unit_id' => $potlot->id, 'nim_nip' => '198511202011122009'],
             ['name' => 'Dr. Yohanes Surya', 'email' => 'dospend.vosc@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleDosenPendamping->id, 'unit_id' => $vosc->id, 'nim_nip' => '197802152002031002'],
 
             // Ketua Ormawa HMD
@@ -95,7 +96,7 @@ class UserSeeder extends Seeder
 
             // Ketua BEM & Senat
             ['name' => 'Ahmad Rizki', 'email' => 'ketua.bem@student.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleKetuaOrmawa->id, 'unit_id' => $bem->id, 'nim_nip' => '24060121120007'],
-            ['name' => 'Dewi Lestari', 'email' => 'senat@student.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleSenat->id, 'unit_id' => $senat->id, 'nim_nip' => '24060121120008'],
+            ['name' => 'Dewi Lestari', 'email' => 'ketua.senat@student.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleKetuaOrmawa->id, 'unit_id' => $senat->id, 'nim_nip' => '24060121120008'],
 
             // Ketua UKM
             ['name' => 'Gilang Ramadhan', 'email' => 'ketua.madani@student.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleKetuaOrmawa->id, 'unit_id' => $madani->id, 'nim_nip' => '24060121110001'],

@@ -36,10 +36,10 @@ class UnitSeeder extends Seeder
         Unit::firstOrCreate(['code' => 'HMB'], ['name' => 'Himpunan Mahasiswa Biologi', 'category' => 'HMD', 'parent_id' => $deptBio->id]);
 
         // BEM
-        Unit::firstOrCreate(['code' => 'BEM-FSM'], ['name' => 'BEM FSM', 'category' => 'BEM', 'parent_id' => $fakultas->id]);
+        Unit::firstOrCreate(['code' => 'BEM-FSM'], ['name' => 'Badan Eksekutif Mahasiswa', 'category' => 'BEM', 'parent_id' => $fakultas->id]);
 
         // Senat
-        Unit::firstOrCreate(['code' => 'SENAT-FSM'], ['name' => 'Senat FSM', 'category' => 'SENAT', 'parent_id' => $fakultas->id]);
+        Unit::firstOrCreate(['code' => 'SENAT-FSM'], ['name' => 'Senat Mahasiswa', 'category' => 'SENAT', 'parent_id' => $fakultas->id]);
 
         // UKM - Unit Kegiatan Mahasiswa (6)
         Unit::firstOrCreate(['code' => 'MADANI'], ['name' => 'MADANI', 'category' => 'UKM', 'parent_id' => $fakultas->id]);
