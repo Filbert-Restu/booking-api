@@ -78,7 +78,8 @@ class UserSeeder extends Seeder
             ['name' => 'Dr. Maya Sari', 'email' => 'dospend.hmb@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleDosenPendamping->id, 'unit_id' => $hmb->id, 'nim_nip' => '198012202006042002'],
 
             // Dosen Pendamping UKM
-            ['name' => 'Dr. Dosen Pembimbing BEM', 'email' => 'dospend.bemf@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleDosenPendamping->id, 'unit_id' => $bem->id, 'nim_nip' => '198208102008121004'],
+            ['name' => 'Dr. Lesti Wulandari', 'email' => 'dospend.senat@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleDosenPendamping->id, 'unit_id' => $senat->id, 'nim_nip' => '198208102008121010'],
+            ['name' => 'Dr. Budi Petrus', 'email' => 'dospend.bemf@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleDosenPendamping->id, 'unit_id' => $bem->id, 'nim_nip' => '198208102008121004'],
             ['name' => 'Dr. Abdullah Aziz', 'email' => 'dospend.madani@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleDosenPendamping->id, 'unit_id' => $madani->id, 'nim_nip' => '198208102008121005'],
             ['name' => 'Dr. Petrus Santoso', 'email' => 'dospend.pkm@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleDosenPendamping->id, 'unit_id' => $pkm->id, 'nim_nip' => '197905152005011006'],
             ['name' => 'Dr. Maria Kristina', 'email' => 'dospend.prmk@fsm.undip.ac.id', 'password' => Hash::make('password'), 'role_id' => $roleDosenPendamping->id, 'unit_id' => $prmk->id, 'nim_nip' => '198306252009122007'],

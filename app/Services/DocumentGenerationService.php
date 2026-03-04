@@ -645,7 +645,7 @@ class DocumentGenerationService
         if ($document->workflow) {
             $logs = DocumentLog::where('document_id', $document->id)
                               ->where('action', 'APPROVED')
-                              ->with('user.role')
+                              ->with(['user.role', 'user.unit'])
                               ->orderBy('created_at')
                               ->get();
 
@@ -685,11 +685,45 @@ class DocumentGenerationService
                         if ($tempSignaturePath) $tempFilePaths[] = $tempSignaturePath;
 
                         if ($tempSignaturePath && file_exists($tempSignaturePath)) {
-                            // Try role-specific placeholders first
+                            $unit = $log->user->unit;
                             $placeholders = [];
-                            if ($roleSlug && isset($roleToSignaturePlaceholder[$roleSlug])) {
-                                $placeholders = array_merge($placeholders, $roleToSignaturePlaceholder[$roleSlug]);
+                            $isSenatUnit = ($unit && strtoupper($unit->category) === 'SENAT');
+
+                            // --- SPECIAL MAPPING FOR SENAT UNIT SIGNATURE ---
+                            if ($isSenatUnit && ($roleSlug === 'ketua-ormawa' || $roleSlug === 'senat')) {
+                                $placeholders[] = 'ttd_ketua_senat';
+                                $placeholders[] = 'signature_ketua_senat';
+                                $placeholders[] = 'ttd_ketuasenat';
+
+                                // Dual mapping: if document belongs to Senat, also fill ormawa/panitia spots
+                                if ($document->unit && strtoupper($document->unit->category) === 'SENAT') {
+                                    $placeholders[] = 'ttd_ketua_ormawa';
+                                    $placeholders[] = 'signature_ketua_ormawa';
+                                    $placeholders[] = 'ttd_ketua_panitia';
+                                    $placeholders[] = 'signature_ketua_panitia';
+                                }
+                            } elseif ($isSenatUnit && $roleSlug === 'sekretaris') {
+                                $placeholders[] = 'ttd_sekretaris_senat';
+                                $placeholders[] = 'signature_sekretaris_senat';
+
+                                // Dual mapping for Senat's own document
+                                if ($document->unit && strtoupper($document->unit->category) === 'SENAT') {
+                                    $placeholders[] = 'ttd_sekretaris';
+                                    $placeholders[] = 'signature_sekretaris';
+                                }
+                            } else {
+                                // Standard role-specific placeholders for non-Senat or other roles
+                                if ($roleSlug && isset($roleToSignaturePlaceholder[$roleSlug])) {
+                                    $placeholders = array_merge($placeholders, $roleToSignaturePlaceholder[$roleSlug]);
+                                }
+
+                                // Fallback for Ketua Panitia/Ormawa in applicant unit
+                                if ($roleSlug === 'ketua-ormawa') {
+                                    $placeholders[] = 'ttd_ketua_panitia';
+                                    $placeholders[] = 'signature_ketua_panitia';
+                                }
                             }
+
                             // Also try generic approver_N placeholder
                             $placeholders[] = "signature_approver_{$approverIndex}";
                             $placeholders[] = "ttd_approver_{$approverIndex}";
@@ -707,7 +741,7 @@ class DocumentGenerationService
                                     \Log::debug("[SIGNATURE] Inserted at placeholder: {$placeholder}");
                                 } catch (\Exception $e) {
                                     // Placeholder might not exist in template, that's ok
-                                    \Log::debug("[SIGNATURE] Placeholder {$placeholder} not found: " . $e->getMessage());
+                                    \Log::debug("[SIGNATURE] Placeholder {$placeholder} not found");
                                 }
                             }
 
@@ -820,14 +854,28 @@ class DocumentGenerationService
                     // --- SPECIAL MAPPING FOR SENAT UNIT ---
                     // If unit category is SENAT, we map ketua-ormawa and sekretaris specifically
                     if ($unit && strtoupper($unit->category) === 'SENAT') {
+                        $isSenatDocument = ($document->unit && strtoupper($document->unit->category) === 'SENAT');
+
                         if ($roleSlug === 'ketua-ormawa' || $roleSlug === 'senat') {
                             $data['nama_ketua_senat'] = $approver->name;
                             $data['nama_ketuasenat'] = $approver->name;
                             $data['nim_ketua_senat'] = $approver->nim_nip ?? '____________________';
                             $data['nim_ketuasenat'] = $approver->nim_nip ?? '____________________';
+
+                            // If this is Senat's own document, also fill general ormawa placeholders
+                            if ($isSenatDocument) {
+                                $data['nama_ketua_ormawa'] = $approver->name;
+                                $data['nim_ketua_ormawa'] = $approver->nim_nip ?? '____________________';
+                            }
                         } elseif ($roleSlug === 'sekretaris') {
                             $data['nama_sekretaris_senat'] = $approver->name;
                             $data['nim_sekretaris_senat'] = $approver->nim_nip ?? '____________________';
+
+                            // If this is Senat's own document, also fill general sekretaris placeholders
+                            if ($isSenatDocument) {
+                                $data['nama_sekretaris'] = $approver->name;
+                                $data['nim_sekretaris'] = $approver->nim_nip ?? '____________________';
+                            }
                         }
                     }
 

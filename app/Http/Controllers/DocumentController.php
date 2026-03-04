@@ -801,36 +801,53 @@ class DocumentController extends Controller
             // Load template processor
             $templateProcessor = new TemplateProcessor($tempDocxPath);
 
-            // Tentukan placeholder berdasarkan role user
+            // Tentukan placeholder berdasarkan role dan unit user
             $userRole = $user->role->slug ?? '';
+            $userUnitCategory = strtoupper($user->unit->category ?? '');
             $placeholders = [];
 
-            switch ($userRole) {
-                case 'ketua-ormawa':
-                    $placeholders = ['ttd_ketua_ormawa', 'signature_ketua_ormawa'];
-                    break;
-                case 'dosen-pendamping':
-                    $placeholders = ['ttd_dosen_pendamping', 'signature_dosen_pendamping'];
-                    break;
-                case 'ketua-departemen':
-                    $placeholders = ['ttd_ketua_departemen', 'signature_ketua_departemen'];
-                    break;
-                case 'wadek1':
-                    $placeholders = ['ttd_wadek1', 'signature_wadek1'];
-                    break;
-                case 'kemahasiswaan':
-                    $placeholders = ['ttd_kemahasiswaan', 'signature_kemahasiswaan'];
-                    break;
-                case 'sumber-daya':
-                    $placeholders = ['ttd_sumber_daya', 'signature_sumber_daya'];
-                    break;
-                case 'senat':
-                    $placeholders = ['ttd_ketua_senat', 'signature_ketua_senat'];
-                    break;
-                default:
-                    // Generic approver placeholders
-                    $placeholders = ['signature_approver_1', 'signature_approver_2', 'signature_approver_3'];
-                    break;
+            if ($userUnitCategory === 'SENAT' && ($userRole === 'ketua-ormawa' || $userRole === 'senat')) {
+                $placeholders = ['ttd_ketua_senat', 'signature_ketua_senat', 'ttd_ketuasenat'];
+                
+                // Dual mapping: if document belongs to Senat unit, also fill chair ormawa/panitia spots
+                if ($document->unit && strtoupper($document->unit->category) === 'SENAT') {
+                    $placeholders = array_merge($placeholders, ['ttd_ketua_ormawa', 'signature_ketua_ormawa', 'ttd_ketua_panitia', 'signature_ketua_panitia']);
+                }
+            } elseif ($userUnitCategory === 'SENAT' && $userRole === 'sekretaris') {
+                $placeholders = ['ttd_sekretaris_senat', 'signature_sekretaris_senat'];
+
+                // Dual mapping: if document belongs to Senat unit
+                if ($document->unit && strtoupper($document->unit->category) === 'SENAT') {
+                    $placeholders = array_merge($placeholders, ['ttd_sekretaris', 'signature_sekretaris']);
+                }
+            } else {
+                switch ($userRole) {
+                    case 'ketua-ormawa':
+                        $placeholders = ['ttd_ketua_ormawa', 'signature_ketua_ormawa', 'ttd_ketua_panitia', 'signature_ketua_panitia'];
+                        break;
+                    case 'dosen-pendamping':
+                        $placeholders = ['ttd_dosen_pendamping', 'signature_dosen_pendamping'];
+                        break;
+                    case 'ketua-departemen':
+                        $placeholders = ['ttd_ketua_departemen', 'signature_ketua_departemen'];
+                        break;
+                    case 'wadek1':
+                        $placeholders = ['ttd_wadek1', 'signature_wadek1'];
+                        break;
+                    case 'kemahasiswaan':
+                        $placeholders = ['ttd_kemahasiswaan', 'signature_kemahasiswaan'];
+                        break;
+                    case 'sumber-daya':
+                        $placeholders = ['ttd_sumber_daya', 'signature_sumber_daya'];
+                        break;
+                    case 'senat':
+                        $placeholders = ['ttd_ketua_senat', 'signature_ketua_senat'];
+                        break;
+                    default:
+                        // Generic approver placeholders
+                        $placeholders = ['signature_approver_1', 'signature_approver_2', 'signature_approver_3'];
+                        break;
+                }
             }
 
             // Insert signature ke semua placeholder yang relevan

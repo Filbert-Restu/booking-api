@@ -210,6 +210,13 @@ class WorkflowEngine
                 // Cari di unit pengirim (HIMA)
                 $approver = $query->where('unit_id', $originUnit->id)->first();
 
+                if (!$approver && $step->target_role_slug === 'senat') {
+                    \Log::info("[WorkflowEngine] Fallback (SELF): 'senat' role not found in {$originUnit->name}, trying 'ketua-ormawa'");
+                    $approver = User::where('unit_id', $originUnit->id)
+                                    ->whereHas('role', function($q) { $q->where('slug', 'ketua-ormawa'); })
+                                    ->first();
+                }
+
                 if (!$approver) {
                     throw new \Exception(
                         "Tidak dapat menemukan approver untuk langkah '{$step->step_name}'. " .
@@ -264,12 +271,10 @@ class WorkflowEngine
                     throw new \Exception("Unit dengan category {$step->target_category_lookup} tidak ditemukan.");
                 }
 
-                // 1. Try with the original slug
                 $approver = $query->where('unit_id', $targetUnit->id)->first();
 
-                // 2. FALLBACK: If slug is 'senat' but not found, try 'ketua-ormawa' in the same unit
                 if (!$approver && $step->target_role_slug === 'senat') {
-                    \Log::info("[WorkflowEngine] Fallback: 'senat' role not found, trying 'ketua-ormawa' for unit: " . $targetUnit->name);
+                    \Log::info("[WorkflowEngine] Fallback: 'senat' role not found in {$targetUnit->name}, trying 'ketua-ormawa'");
                     $approver = User::where('unit_id', $targetUnit->id)
                                     ->whereHas('role', function($q) { $q->where('slug', 'ketua-ormawa'); })
                                     ->first();
