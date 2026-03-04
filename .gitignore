@@ -31,3 +31,6 @@ Thumbs.db
 
 # Seeder-generated test template files
 /storage/app/test/
+
+# Temporary processing files
+/storage/app/temp/

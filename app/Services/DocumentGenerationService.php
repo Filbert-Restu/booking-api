@@ -71,96 +71,103 @@ class DocumentGenerationService
         ]);
 
         $templateProcessor = new TemplateProcessor($tempTemplatePath);
+        $tempSignaturePaths = [];
+        $tempOutputPath = null;
 
-        // 3. Get data untuk fill
-        $data = $this->prepareData($document);
+        try {
+            // 3. Get data untuk fill
+            $data = $this->prepareData($document);
 
-        \Log::info('[DocumentGeneration] Prepared data for placeholders', [
-            'document_id' => $document->id,
-            'total_fields' => count($data),
-            'sample_data' => array_slice($data, 0, 10),
-            'has_event_name' => isset($data['event_name']),
-            'event_name_value' => $data['event_name'] ?? 'NOT SET'
-        ]);
+            \Log::info('[DocumentGeneration] Prepared data for placeholders', [
+                'document_id' => $document->id,
+                'total_fields' => count($data),
+                'sample_data' => array_slice($data, 0, 10),
+                'has_event_name' => isset($data['event_name']),
+                'event_name_value' => $data['event_name'] ?? 'NOT SET'
+            ]);
 
-        // 4. Replace all placeholders
-        $replacedCount = 0;
-        foreach ($data as $key => $value) {
-            // Skip TTD placeholders - they will be replaced with images
-            if (strpos($key, 'ttd_') === 0 || strpos($key, 'signature_') === 0) {
-                \Log::debug("[Placeholder] Skipped (for image): {$key}");
-                continue;
+            // 4. Replace all placeholders
+            $replacedCount = 0;
+            foreach ($data as $key => $value) {
+                // Skip TTD placeholders - they will be replaced with images
+                if (strpos($key, 'ttd_') === 0 || strpos($key, 'signature_') === 0) {
+                    \Log::debug("[Placeholder] Skipped (for image): {$key}");
+                    continue;
+                }
+
+                // Ensure value is string, handle null values
+                $value = $value ?? '-';
+                try {
+                    $templateProcessor->setValue($key, $value);
+                    $replacedCount++;
+                    \Log::debug("[Placeholder] Replaced: {$key} = " . substr($value, 0, 50));
+                } catch (\Exception $e) {
+                    \Log::warning("[Placeholder] Failed to replace: {$key}", [
+                        'error' => $e->getMessage()
+                    ]);
+                }
             }
 
-            // Ensure value is string, handle null values
-            $value = $value ?? '-';
-            try {
-                $templateProcessor->setValue($key, $value);
-                $replacedCount++;
-                \Log::debug("[Placeholder] Replaced: {$key} = " . substr($value, 0, 50));
-            } catch (\Exception $e) {
-                \Log::warning("[Placeholder] Failed to replace: {$key}", [
-                    'error' => $e->getMessage()
-                ]);
+            \Log::info('[DocumentGeneration] Placeholder replacement complete', [
+                'replaced_count' => $replacedCount,
+                'total_data_fields' => count($data)
+            ]);
+
+            // 4b. Insert signature images if placeholders exist
+            $tempSignaturePaths = $this->insertSignatures($templateProcessor, $document);
+
+            // 5. Save generated document to temp first, then upload to MinIO
+            $outputFileName = $this->generateFileName($document, $templateType);
+            $tempOutputPath = storage_path('app/temp/' . $outputFileName);
+
+            // Create temp directory if not exists
+            if (!file_exists(dirname($tempOutputPath))) {
+                mkdir(dirname($tempOutputPath), 0755, true);
+            }
+
+            // Save to temp file
+            $templateProcessor->saveAs($tempOutputPath);
+
+            \Log::info('Generated document saved to temp', [
+                'temp_path' => $tempOutputPath,
+                'size' => filesize($tempOutputPath)
+            ]);
+
+            // 6. Upload to MinIO
+            $minioPath = 'documents/' . $outputFileName;
+            $fileContent = file_get_contents($tempOutputPath);
+            Storage::disk($this->getStorageDiskName())->put($minioPath, $fileContent);
+
+            \Log::info('Generated document uploaded to MinIO', [
+                'minio_path' => $minioPath,
+                'size' => strlen($fileContent)
+            ]);
+
+            // 8. Return relative path for MinIO
+            return $minioPath;
+
+        } finally {
+            // 7. Cleanup temporary files
+            if (isset($tempTemplatePath) && file_exists($tempTemplatePath)) {
+                @unlink($tempTemplatePath);
+                \Log::debug('Temporary template file cleaned up', ['path' => $tempTemplatePath]);
+            }
+
+            if ($tempOutputPath && file_exists($tempOutputPath)) {
+                @unlink($tempOutputPath);
+                \Log::debug('Temporary output file cleaned up', ['path' => $tempOutputPath]);
+            }
+
+            // 7b. Cleanup temporary signature files
+            if (!empty($tempSignaturePaths)) {
+                foreach ($tempSignaturePaths as $sigPath) {
+                    if (file_exists($sigPath)) {
+                        @unlink($sigPath);
+                        \Log::debug('Temporary signature file cleaned up', ['path' => $sigPath]);
+                    }
+                }
             }
         }
-
-        \Log::info('[DocumentGeneration] Placeholder replacement complete', [
-            'replaced_count' => $replacedCount,
-            'total_data_fields' => count($data)
-        ]);
-
-        // 4b. Insert signature images if placeholders exist
-        $tempSignaturePaths = $this->insertSignatures($templateProcessor, $document);
-
-        // 5. Save generated document to temp first, then upload to MinIO
-        $outputFileName = $this->generateFileName($document, $templateType);
-        $tempOutputPath = storage_path('app/temp/' . $outputFileName);
-
-        // Create temp directory if not exists
-        if (!file_exists(dirname($tempOutputPath))) {
-            mkdir(dirname($tempOutputPath), 0755, true);
-        }
-
-        // Save to temp file
-        $templateProcessor->saveAs($tempOutputPath);
-
-        \Log::info('Generated document saved to temp', [
-            'temp_path' => $tempOutputPath,
-            'size' => filesize($tempOutputPath)
-        ]);
-
-        // 6. Upload to MinIO
-        $minioPath = 'documents/' . $outputFileName;
-        $fileContent = file_get_contents($tempOutputPath);
-        Storage::disk($this->getStorageDiskName())->put($minioPath, $fileContent);
-
-        \Log::info('Generated document uploaded to MinIO', [
-            'minio_path' => $minioPath,
-            'size' => strlen($fileContent)
-        ]);
-
-        // 7. Cleanup temporary files
-        if (isset($tempTemplatePath) && file_exists($tempTemplatePath)) {
-            unlink($tempTemplatePath);
-            \Log::debug('Temporary template file cleaned up', ['path' => $tempTemplatePath]);
-        }
-
-        if (file_exists($tempOutputPath)) {
-            unlink($tempOutputPath);
-            \Log::debug('Temporary output file cleaned up', ['path' => $tempOutputPath]);
-        }
-
-        // 7b. Cleanup temporary signature files
-        foreach ($tempSignaturePaths as $sigPath) {
-            if (file_exists($sigPath)) {
-                @unlink($sigPath);
-                \Log::debug('Temporary signature file cleaned up', ['path' => $sigPath]);
-            }
-        }
-
-        // 8. Return relative path for MinIO
-        return $minioPath;
     }
 
     /**

@@ -782,13 +782,18 @@ class DocumentController extends Controller
 
             // Download regenerated file from MinIO ke temporary file
             $targetPath = $document->{$column};
-            $tempDocxPath = sys_get_temp_dir() . '/' . $type . '_' . uniqid() . '.docx';
+            $tempDir = storage_path('app/temp');
+            if (!file_exists($tempDir)) {
+                mkdir($tempDir, 0755, true);
+            }
+            
+            $tempDocxPath = $tempDir . '/' . $type . '_' . uniqid() . '.docx';
 
             $docxContent = Storage::disk('private')->get($targetPath);
             file_put_contents($tempDocxPath, $docxContent);
 
             // Download signature dari MinIO ke temporary file
-            $tempSignaturePath = sys_get_temp_dir() . '/signature_' . uniqid() . '.' . pathinfo($signature->signature, PATHINFO_EXTENSION);
+            $tempSignaturePath = $tempDir . '/signature_' . uniqid() . '.' . pathinfo($signature->signature, PATHINFO_EXTENSION);
             $signatureContent = Storage::disk('private')->get($signature->signature);
             file_put_contents($tempSignaturePath, $signatureContent);
 
