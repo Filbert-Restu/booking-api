@@ -156,7 +156,7 @@ class DocumentController extends Controller
             ->pluck('document_id')
             ->unique();
 
-        $processedDocumentsQuery = Document::with(['workflow', 'currentHolder', 'creator', 'unit'])
+        $processedDocumentsQuery = Document::with(['workflow', 'currentHolder', 'creator', 'unit', 'logs.user.role'])
             ->whereIn('id', $processedDocumentIds)
             ->where('current_holder_id', '!=', $user->id);
 
@@ -215,7 +215,7 @@ class DocumentController extends Controller
         // Cek apakah user pernah memproses dokumen ini (ada di logs)
         $hasProcessed = DocumentLog::where('document_id', $document->id)
             ->where('user_id', $user->id)
-            ->whereIn('action', ['APPROVED', 'REJECTED', 'SUBMITTED', 'REVISED'])
+            ->whereIn('action', ['APPROVED', 'REJECTED', 'SUBMITTED', 'REVISED', 'RETURNED'])
             ->exists();
 
         // Validasi akses
