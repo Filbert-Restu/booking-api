@@ -22,6 +22,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     $user->load(['role', 'unit']);
     return $user;
 });
+Route::middleware('auth:sanctum')->patch('/user/profile', [App\Http\Controllers\UserController::class, 'updateProfile']);
 
 // DEV ONLY: Get all users for development login menu
 // Hanya bisa diakses di environment local/development
@@ -77,10 +78,9 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/{id}/images', [RoomController::class, 'deleteImage']);
         });
 
-        // Booking Admin Actions (Approve, Reject)
+        // Booking Admin Actions (Approve)
         Route::prefix('room-bookings')->group(function () {
             Route::post('/{id}/approve', [RoomBookingController::class, 'approve']);
-            Route::post('/{id}/reject', [RoomBookingController::class, 'reject']);
         });
     });
 
@@ -132,7 +132,6 @@ Route::middleware('auth:sanctum')->group(function () {
         // Workflow Actions
         Route::post('/{id}/submit', [DocumentController::class, 'submit']);
         Route::post('/{id}/approve', [DocumentController::class, 'approve']);
-        Route::post('/{id}/reject', [DocumentController::class, 'reject']);
         Route::post('/{id}/revise', [DocumentController::class, 'revise']);
         Route::post('/{id}/apply-signature', [DocumentController::class, 'applySignature']);
 

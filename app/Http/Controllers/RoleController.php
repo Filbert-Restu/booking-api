@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Role;
 use Illuminate\Http\Request;
+use App\Http\Requests\Role\StoreRoleRequest;
+use App\Http\Requests\Role\UpdateRoleRequest;
 
 class RoleController extends Controller
 {
@@ -36,7 +38,7 @@ class RoleController extends Controller
     /**
      * Buat role baru (Admin only)
      */
-    public function store(Request $request)
+    public function store(StoreRoleRequest $request)
     {
         // Pastikan hanya admin yang bisa membuat role
         $user = $request->user();
@@ -46,11 +48,7 @@ class RoleController extends Controller
             'Hanya admin yang dapat membuat role'
         );
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'slug' => 'required|string|max:255|unique:roles,slug',
-            'description' => 'nullable|string',
-        ]);
+        $validated = $request->validated();
 
         $role = Role::create($validated);
 
@@ -64,7 +62,7 @@ class RoleController extends Controller
     /**
      * Update role (Admin only)
      */
-    public function update(Request $request, $id)
+    public function update(UpdateRoleRequest $request, $id)
     {
         // Pastikan hanya admin yang bisa mengupdate role
         $user = $request->user();
@@ -76,11 +74,7 @@ class RoleController extends Controller
 
         $role = Role::findOrFail($id);
 
-        $validated = $request->validate([
-            'name' => 'sometimes|string|max:255',
-            'slug' => 'sometimes|string|max:255|unique:roles,slug,' . $id,
-            'description' => 'nullable|string',
-        ]);
+        $validated = $request->validated();
 
         $role->update($validated);
 

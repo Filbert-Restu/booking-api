@@ -28,6 +28,7 @@ class User extends Authenticatable
         'nim_nip',
         'role_id',
         'unit_id',
+        'is_profile_completed',
     ];
 
     /**
@@ -50,6 +51,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_profile_completed' => 'boolean',
         ];
     }
 

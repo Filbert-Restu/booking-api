@@ -3,56 +3,24 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\UserService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules\Password;
+use App\Http\Requests\User\StoreUserRequest;
+use App\Http\Requests\User\UpdateUserRequest;
+use App\Http\Requests\User\UpdateProfileRequest;
 
 class UserController extends Controller
 {
-    /**
-     * Daftar semua user
-     *
-     * Query params:
-     * - role_id: Filter by role
-     * - unit_id: Filter by unit
-     * - status: Filter by status (ACTIVE/INACTIVE)
-     * - search: Search by name atau email
-     */
+    protected UserService $userService;
+
+    public function __construct(UserService $userService)
+    {
+        $this->userService = $userService;
+    }
+
     public function index(Request $request)
     {
-        $user = $request->user();
-        $query = User::with(['role', 'unit']);
-
-        // Admin bisa lihat semua, user biasa hanya lihat user di unit yang sama
-        if ($user->unit?->category !== 'FAKULTAS' && $user->role?->slug !== 'admin') {
-            $query->where('unit_id', $user->unit_id);
-        }
-
-        // Filter by role
-        if ($request->has('role_id')) {
-            $query->where('role_id', $request->role_id);
-        }
-
-        // Filter by unit
-        if ($request->has('unit_id')) {
-            $query->where('unit_id', $request->unit_id);
-        }
-
-        // Filter by status
-        if ($request->has('status')) {
-            $query->where('status', $request->status);
-        }
-
-        // Search by name or email
-        if ($request->has('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
-            });
-        }
-
-        $users = $query->latest()->paginate($request->input('per_page', 15));
+        $users = $this->userService->listUsers($request->user(), $request->all());
 
         return response()->json([
             'success' => true,
@@ -60,9 +28,6 @@ class UserController extends Controller
         ]);
     }
 
-    /**
-     * Detail user tertentu
-     */
     public function show($id)
     {
         $user = User::with(['role', 'unit'])->findOrFail($id);
@@ -73,33 +38,15 @@ class UserController extends Controller
         ]);
     }
 
-    /**
-     * Buat user baru (Admin only)
-     */
-    public function store(Request $request)
+    public function store(StoreUserRequest $request)
     {
-        // Pastikan hanya admin yang bisa membuat user
         abort_if(
             $request->user()->unit->category !== 'FAKULTAS',
             403,
             'Hanya admin yang dapat membuat user'
         );
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => ['required', Password::defaults()],
-            'role_id' => 'required|exists:roles,id',
-            'unit_id' => 'required|exists:units,id',
-        ]);
-
-        $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-            'role_id' => $validated['role_id'],
-            'unit_id' => $validated['unit_id'],
-        ]);
+        $user = $this->userService->createUser($request->validated());
 
         return response()->json([
             'success' => true,
@@ -108,12 +55,8 @@ class UserController extends Controller
         ], 201);
     }
 
-    /**
-     * Update user (Admin only)
-     */
-    public function update(Request $request, $id)
+    public function update(UpdateUserRequest $request, $id)
     {
-        // Pastikan hanya admin yang bisa mengupdate user
         abort_if(
             $request->user()->unit->category !== 'FAKULTAS',
             403,
@@ -121,21 +64,7 @@ class UserController extends Controller
         );
 
         $user = User::findOrFail($id);
-
-        $validated = $request->validate([
-            'name' => 'sometimes|string|max:255',
-            'email' => 'sometimes|string|email|max:255|unique:users,email,' . $id,
-            'password' => ['sometimes', Password::defaults()],
-            'role_id' => 'sometimes|exists:roles,id',
-            'unit_id' => 'sometimes|exists:units,id',
-        ]);
-
-        // Hash password jika ada
-        if (isset($validated['password'])) {
-            $validated['password'] = Hash::make($validated['password']);
-        }
-
-        $user->update($validated);
+        $user = $this->userService->updateUser($user, $request->validated());
 
         return response()->json([
             'success' => true,
@@ -144,12 +73,8 @@ class UserController extends Controller
         ]);
     }
 
-    /**
-     * Hapus user (Admin only)
-     */
     public function destroy(Request $request, $id)
     {
-        // Pastikan hanya admin yang bisa menghapus user
         abort_if(
             $request->user()->unit->category !== 'FAKULTAS',
             403,
@@ -158,27 +83,29 @@ class UserController extends Controller
 
         $user = User::findOrFail($id);
 
-        // Validasi: Tidak bisa hapus diri sendiri
-        if ($user->id === $request->user()->id) {
+        try {
+            $this->userService->deleteUser($user, $request->user());
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Tidak dapat menghapus akun sendiri'
-            ], 400);
+                'message' => $e->getMessage()
+            ], $e->getCode() ?: 400);
         }
-
-        // Validasi: Tidak bisa hapus user yang sedang memegang dokumen aktif
-        if ($user->currentDocuments()->where('status', 'IN_PROGRESS')->count() > 0) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Tidak dapat menghapus user yang sedang memegang dokumen aktif'
-            ], 400);
-        }
-
-        $user->delete();
 
         return response()->json([
             'success' => true,
             'message' => 'User berhasil dihapus'
+        ]);
+    }
+
+    public function updateProfile(UpdateProfileRequest $request)
+    {
+        $user = $this->userService->updateProfile($request->user(), $request->validated());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Profil berhasil dilengkapi',
+            'data'    => $user->load(['role', 'unit'])
         ]);
     }
 }

@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Unit;
 use Illuminate\Http\Request;
+use App\Http\Requests\Unit\StoreUnitRequest;
+use App\Http\Requests\Unit\UpdateUnitRequest;
 
 class UnitController extends Controller
 {
@@ -47,7 +49,7 @@ class UnitController extends Controller
     /**
      * Buat unit baru (Admin only)
      */
-    public function store(Request $request)
+    public function store(StoreUnitRequest $request)
     {
         // Pastikan hanya admin yang bisa membuat unit
         $user = $request->user();
@@ -57,13 +59,7 @@ class UnitController extends Controller
             'Hanya admin yang dapat membuat unit'
         );
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'code' => 'required|string|max:255|unique:units,code',
-            'description' => 'nullable|string',
-            'category' => 'required|in:FAKULTAS,PRODI,HIMA',
-            'parent_id' => 'nullable|exists:units,id',
-        ]);
+        $validated = $request->validated();
 
         $unit = Unit::create($validated);
 
@@ -77,7 +73,7 @@ class UnitController extends Controller
     /**
      * Update unit (Admin only)
      */
-    public function update(Request $request, $id)
+    public function update(UpdateUnitRequest $request, $id)
     {
         // Pastikan hanya admin yang bisa mengupdate unit
         $user = $request->user();
@@ -89,11 +85,7 @@ class UnitController extends Controller
 
         $unit = Unit::findOrFail($id);
 
-        $validated = $request->validate([
-            'name' => 'sometimes|string|max:255',
-            'category' => 'sometimes|in:FAKULTAS,JURUSAN,PRODI,HIMA',
-            'parent_id' => 'nullable|exists:units,id',
-        ]);
+        $validated = $request->validated();
 
         $unit->update($validated);
 

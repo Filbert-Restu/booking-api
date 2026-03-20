@@ -29,16 +29,6 @@ class WorkflowEngine
                 'step_snapshot' => $document->current_step_order
             ]);
 
-            // 2. Simpan tanda tangan jika ada
-            if ($signaturePath) {
-                Sign::create([
-                    'user_id' => $actor->id,
-                    'signature' => $signaturePath,
-                    'signed_at' => now(),
-                ]);
-            }
-
-            // 2b. REGENERATE lembar pengesahan dengan TTD yang baru
             try {
                 $document->load(['unit', 'workflow']);
                 $organizationType = strtolower($document->unit->category ?? 'hmd');

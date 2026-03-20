@@ -8,9 +8,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class DocumentTemplate extends Model
 {
     use SoftDeletes;
-
-    protected $guarded = ['id'];
-
+    
     protected $casts = [
         'is_active' => 'boolean',
         'version' => 'integer',
