@@ -73,6 +73,13 @@ class RoomBookingService
             throw new \Exception('Tanggal peminjaman tidak valid', 422);
         }
 
+        // Validasi minimal hari pengajuan
+        $minDays = config('booking.min_booking_days', 8);
+        $daysUntilBooking = Carbon::today()->diffInDays($bookingDate, false);
+        if ($daysUntilBooking < $minDays) {
+            throw new \Exception("Peminjaman harus diajukan minimal {$minDays} hari kalender sebelum hari-H", 400);
+        }
+
         if (!$bookingDate->isSaturday()) {
             throw new \Exception('Peminjaman hanya diperbolehkan pada hari Sabtu', 400);
         }
@@ -92,10 +99,13 @@ class RoomBookingService
             throw new \Exception('Anda tidak memiliki akses ke dokumen ini', 403);
         }
 
-        // Cek Double Booking Dokumen
-        $existingBooking = RoomBooking::where('document_id', $data['document_id'])->first();
+        // Cek duplikat: apakah dokumen ini sudah punya booking untuk ruangan yang sama
+        $existingBooking = RoomBooking::where('document_id', $data['document_id'])
+            ->where('room_id', $data['room_id'])
+            ->whereNotIn('status', ['CANCELLED', 'REJECTED'])
+            ->first();
         if ($existingBooking) {
-            throw new \Exception('Dokumen ini sudah memiliki booking ruangan', 400);
+            throw new \Exception('Dokumen ini sudah memiliki booking untuk ruangan yang sama', 400);
         }
 
         // Cek Ketersediaan Ruangan
@@ -277,4 +287,170 @@ class RoomBookingService
             \Log::warning('[Rollback] Failed to rollback document', ['document_id' => $document->id ?? null, 'error' => $e->getMessage()]);
         }
     }
+
+    /**
+     * Rekapitulasi penggunaan ruangan per minggu
+     */
+    public function weeklyReport(array $filters): array
+    {
+        $weekStart = isset($filters['week_start'])
+            ? Carbon::parse($filters['week_start'])->startOfWeek()
+            : Carbon::now()->startOfWeek();
+
+        $weekEnd = $weekStart->copy()->endOfWeek();
+
+        $rooms = Room::where('status', 'ACTIVE')->orderBy('name')->get();
+
+        $bookings = RoomBooking::with(['room', 'bookedBy.unit'])
+            ->whereBetween('booking_date', [$weekStart->toDateString(), $weekEnd->toDateString()])
+            ->whereIn('status', ['APPROVED', 'PENDING', 'COMPLETED'])
+            ->get();
+
+        $roomUsage = [];
+        foreach ($rooms as $room) {
+            $roomBookings = $bookings->where('room_id', $room->id);
+
+            $totalHours = $roomBookings->sum(function ($b) {
+                $start = Carbon::parse($b->start_time);
+                $end = Carbon::parse($b->end_time);
+                return $start->diffInMinutes($end) / 60;
+            });
+
+            $roomUsage[] = [
+                'room_id' => $room->id,
+                'room_name' => $room->name,
+                'room_code' => $room->code,
+                'total_bookings' => $roomBookings->count(),
+                'approved' => $roomBookings->where('status', 'APPROVED')->count(),
+                'pending' => $roomBookings->where('status', 'PENDING')->count(),
+                'completed' => $roomBookings->where('status', 'COMPLETED')->count(),
+                'total_hours' => round($totalHours, 1),
+                'bookings' => $roomBookings->map(fn($b) => [
+                    'id' => $b->id,
+                    'date' => $b->booking_date->format('Y-m-d'),
+                    'day' => $b->booking_date->translatedFormat('l'),
+                    'start_time' => substr($b->start_time, 0, 5),
+                    'end_time' => substr($b->end_time, 0, 5),
+                    'purpose' => $b->purpose,
+                    'status' => $b->status,
+                    'booked_by' => $b->bookedBy?->name,
+                    'unit' => $b->bookedBy?->unit?->name,
+                ])->values(),
+            ];
+        }
+
+        $summary = [
+            'week_start' => $weekStart->toDateString(),
+            'week_end' => $weekEnd->toDateString(),
+            'total_bookings' => $bookings->count(),
+            'total_approved' => $bookings->where('status', 'APPROVED')->count(),
+            'total_pending' => $bookings->where('status', 'PENDING')->count(),
+            'total_completed' => $bookings->where('status', 'COMPLETED')->count(),
+            'rooms_used' => $bookings->pluck('room_id')->unique()->count(),
+            'total_rooms' => $rooms->count(),
+        ];
+
+        return [
+            'summary' => $summary,
+            'room_usage' => $roomUsage,
+        ];
+    }
+
+    /**
+     * Batch create bookings (multi-waktu/multi-ruangan)
+     */
+    public function batchCreateBookings(User $user, int $documentId, array $bookingSlots): array
+    {
+        $document = Document::findOrFail($documentId);
+
+        if ($document->creator_id !== $user->id && $document->current_holder_id !== $user->id) {
+            throw new \Exception('Anda tidak memiliki akses ke dokumen ini', 403);
+        }
+
+        $createdBookings = [];
+        $errors = [];
+
+        DB::beginTransaction();
+
+        try {
+            foreach ($bookingSlots as $index => $slot) {
+                try {
+                    $slotData = array_merge($slot, ['document_id' => $documentId]);
+                    $booking = $this->createBooking($user, $slotData);
+                    $createdBookings[] = $booking;
+                } catch (\Exception $e) {
+                    $errors[] = [
+                        'slot_index' => $index,
+                        'room_id' => $slot['room_id'] ?? null,
+                        'booking_date' => $slot['booking_date'] ?? null,
+                        'error' => $e->getMessage(),
+                    ];
+                }
+            }
+
+            if (!empty($errors) && empty($createdBookings)) {
+                DB::rollBack();
+                throw new \Exception('Semua slot booking gagal dibuat', 400);
+            }
+
+            DB::commit();
+
+            return [
+                'created' => $createdBookings,
+                'errors' => $errors,
+            ];
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * Generate receipt data for printing
+     */
+    public function getReceiptData(RoomBooking $booking): array
+    {
+        $booking->load(['room', 'document', 'bookedBy.unit', 'approvedBy']);
+
+        return [
+            'booking_id' => $booking->id,
+            'booking_date' => $booking->booking_date->format('d F Y'),
+            'day' => $booking->booking_date->translatedFormat('l'),
+            'start_time' => substr($booking->start_time, 0, 5),
+            'end_time' => substr($booking->end_time, 0, 5),
+            'duration_hours' => $booking->getDurationInHours(),
+            'purpose' => $booking->purpose,
+            'special_requirements' => $booking->special_requirements,
+            'expected_participants' => $booking->expected_participants,
+            'status' => $booking->status,
+
+            'room' => [
+                'name' => $booking->room->name,
+                'code' => $booking->room->code,
+                'capacity' => $booking->room->capacity,
+            ],
+
+            'booked_by' => [
+                'name' => $booking->bookedBy?->name,
+                'email' => $booking->bookedBy?->email,
+                'unit' => $booking->bookedBy?->unit?->name,
+            ],
+
+            'approved_by' => $booking->approvedBy ? [
+                'name' => $booking->approvedBy->name,
+                'approved_at' => $booking->approved_at?->format('d F Y H:i'),
+            ] : null,
+
+            'document' => $booking->document ? [
+                'id' => $booking->document->id,
+                'title' => $booking->document->title,
+                'status' => $booking->document->status,
+            ] : null,
+
+            'created_at' => $booking->created_at->format('d F Y H:i'),
+            'qr_url' => url("/api/room-bookings/{$booking->id}/qrcode"),
+            'receipt_url' => url("/api/room-bookings/{$booking->id}/receipt"),
+        ];
+    }
 }
+

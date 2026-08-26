@@ -325,13 +325,47 @@ class DocumentService
                 return;
             }
 
-            $firstStep = $document->workflow->steps()->where('step_order', 1)->first();
+            $originalStatus = $document->status;
+            $currentStep = 1;
 
-            if (!$firstStep) {
-                throw new \Exception('Workflow tidak memiliki langkah');
+            // HANDLE REVISION LOGIC (Requirements #8 & #9)
+            if ($originalStatus === 'REVISION') {
+                $lastBooking = RoomBooking::where('document_id', $document->id)
+                    ->whereNotIn('status', ['CANCELLED', 'REJECTED'])
+                    ->latest()
+                    ->first();
+
+                if ($lastBooking) {
+                    $newContent = $document->content;
+                    $newDate = $newContent['booking_date'] ?? null;
+                    $newRoomId = $newContent['room_id'] ?? null;
+
+                    $oldDate = $lastBooking->booking_date->format('Y-m-d');
+                    $oldRoomId = $lastBooking->room_id;
+
+                    if ($newDate && $newDate !== $oldDate) {
+                        // Requirement #9: Ganti tanggal -> ulang dari awal
+                        \Log::info("[Revision] Date changed from {$oldDate} to {$newDate}. Restarting workflow.");
+                        $currentStep = 1;
+                    } elseif ($newRoomId && $newRoomId != $oldRoomId) {
+                        // Requirement #8: Ganti tempat saja -> langsung ke Sumber Daya
+                        $sumberDayaStep = $document->workflow->steps()
+                            ->where('target_role_slug', 'sumber-daya')
+                            ->first();
+
+                        if ($sumberDayaStep) {
+                            \Log::info("[Revision] Room changed from {$oldRoomId} to {$newRoomId}. Jumping to Sumber Daya (Step {$sumberDayaStep->step_order}).");
+                            $currentStep = $sumberDayaStep->step_order;
+                        }
+                    }
+                }
             }
 
-            $originalStatus = $document->status;
+            $firstStep = $document->workflow->steps()->where('step_order', $currentStep)->first();
+
+            if (!$firstStep) {
+                throw new \Exception("Workflow tidak memiliki langkah ke-{$currentStep}");
+            }
 
             $logNote = $originalStatus === 'REVISION'
                 ? 'Dokumen diajukan ulang setelah revisi'
@@ -345,8 +379,8 @@ class DocumentService
                 'step_snapshot' => 0,
             ]);
 
-            // AUTO-APPROVE STEP 1 JIKA SUBMITTER ADALAH SEKRETARIS
-            if ($userRole === 'sekretaris' && $firstStep->target_role_slug === 'sekretaris') {
+            // AUTO-APPROVE JIKA SUBMITTER ADALAH SEKRETARIS (berlaku untuk step 1)
+            if ($currentStep === 1 && $userRole === 'sekretaris' && $firstStep->target_role_slug === 'sekretaris') {
                 \Log::info('[DocumentService] Sekretaris auto-approve Step 1', [
                     'document_id' => $document->id,
                     'user' => $user->name,
@@ -359,11 +393,6 @@ class DocumentService
                     'note' => 'Pengajuan oleh Sekretaris (auto-approve)',
                     'step_snapshot' => 1,
                 ]);
-
-                $sign = Sign::where('user_id', $user->id)->latest()->first();
-                if ($sign && $sign->signature) {
-                    \Log::info('[DocumentService] Sekretaris signature found', ['sign_id' => $sign->id]);
-                }
 
                 $secondStep = $document->workflow->steps()->where('step_order', 2)->first();
 
@@ -392,20 +421,20 @@ class DocumentService
                 return;
             }
 
-            // ALUR NORMAL
-            $firstApprover = $this->workflowEngine->findApprover($document, $firstStep);
+            // ALUR NORMAL / JUMP
+            $approver = $this->workflowEngine->findApprover($document, $firstStep);
 
-            if (!$firstApprover) {
+            if (!$approver) {
                 $roleName = $firstStep->target_role_slug;
                 $unitName = $document->unit->name ?? 'Unknown Unit';
 
-                throw new \Exception("Tidak dapat menemukan approver untuk langkah '{$firstStep->step_name}'. Diperlukan user dengan role '{$roleName}' di unit '{$unitName}'. Silakan hubungi admin untuk menambahkan user dengan role tersebut.");
+                throw new \Exception("Tidak dapat menemukan approver untuk langkah '{$firstStep->step_name}'. Diperlukan user dengan role '{$roleName}' di unit '{$unitName}'.");
             }
 
             $document->update([
                 'status' => 'IN_PROGRESS',
-                'current_step_order' => 1,
-                'current_holder_id' => $firstApprover->id,
+                'current_step_order' => $currentStep,
+                'current_holder_id' => $approver->id,
             ]);
         });
 

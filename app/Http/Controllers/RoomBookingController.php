@@ -292,4 +292,114 @@ class RoomBookingController extends Controller
             'data' => $stats,
         ]);
     }
+
+    public function weeklyReport(Request $request)
+    {
+        $report = $this->bookingService->weeklyReport($request->all());
+
+        return response()->json([
+            'success' => true,
+            'data' => $report,
+        ]);
+    }
+
+    public function batchStore(Request $request)
+    {
+        $user = $request->user();
+
+        $request->validate([
+            'document_id' => 'required|exists:documents,id',
+            'bookings' => 'required|array|min:1',
+            'bookings.*.room_id' => 'required|exists:rooms,id',
+            'bookings.*.booking_date' => 'required|date',
+            'bookings.*.start_time' => 'required|date_format:H:i',
+            'bookings.*.end_time' => 'required|date_format:H:i|after:bookings.*.start_time',
+            'bookings.*.purpose' => 'required|string',
+            'bookings.*.special_requirements' => 'nullable|string',
+            'bookings.*.expected_participants' => 'nullable|integer|min:1',
+        ]);
+
+        try {
+            $result = $this->bookingService->batchCreateBookings(
+                $user,
+                $request->document_id,
+                $request->bookings
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => count($result['created']) . ' booking berhasil dibuat',
+                'data' => [
+                    'created' => collect($result['created'])->map(fn($b) => $b->load(['room', 'document', 'bookedBy'])),
+                    'errors' => $result['errors'],
+                ],
+            ], 201);
+        } catch (\Exception $e) {
+            $code = $e->getCode() ?: 500;
+            if ($code < 100 || $code > 599) $code = 500;
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $code);
+        }
+    }
+
+    public function receipt(Request $request, $id)
+    {
+        $booking = RoomBooking::findOrFail($id);
+        $user = $request->user();
+
+        // Authorization: only booker, admin, or approver
+        $isAuthorized = $booking->booked_by === $user->id
+            || $user->role->slug === 'admin'
+            || $booking->approved_by === $user->id;
+
+        if (!$isAuthorized) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak memiliki akses untuk melihat bukti peminjaman ini',
+            ], 403);
+        }
+
+        $receiptData = $this->bookingService->getReceiptData($booking);
+
+        return response()->json([
+            'success' => true,
+            'data' => $receiptData,
+        ]);
+    }
+
+    public function qrcode(Request $request, $id)
+    {
+        $booking = RoomBooking::findOrFail($id);
+
+        $frontendUrl = config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:3000'));
+        $bookingUrl = "{$frontendUrl}/bookings/{$booking->id}";
+
+        try {
+            $qrCode = \SimpleSoftwareIO\QrCode\Facades\QrCode::format('png')
+                ->size(300)
+                ->margin(2)
+                ->generate($bookingUrl);
+
+            return response($qrCode, 200, [
+                'Content-Type' => 'image/png',
+                'Content-Disposition' => 'inline; filename="booking-' . $booking->id . '-qr.png"',
+                'Cache-Control' => 'public, max-age=86400',
+            ]);
+        } catch (\Exception $e) {
+            // Fallback: return URL as JSON if QR library not available
+            \Log::warning('QR code generation failed', ['error' => $e->getMessage()]);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'booking_id' => $booking->id,
+                    'url' => $bookingUrl,
+                    'message' => 'QR code library not installed. Install simplesoftwareio/simple-qrcode for QR generation.',
+                ],
+            ]);
+        }
+    }
 }

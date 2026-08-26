@@ -183,13 +183,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('room-bookings')->group(function () {
         Route::get('/', [RoomBookingController::class, 'index']);
         Route::get('/statistics', [RoomBookingController::class, 'statistics']);
+        Route::get('/weekly-report', [RoomBookingController::class, 'weeklyReport']);
         Route::get('/{id}', [RoomBookingController::class, 'show']);
         Route::post('/', [RoomBookingController::class, 'store']);
+        Route::post('/batch', [RoomBookingController::class, 'batchStore']);
         Route::put('/{id}', [RoomBookingController::class, 'update']);
         Route::delete('/{id}', [RoomBookingController::class, 'destroy']);
 
         // User Actions
         Route::post('/{id}/cancel', [RoomBookingController::class, 'cancel']);
         Route::post('/{id}/complete', [RoomBookingController::class, 'complete']);
+
+        // Receipt & QR Code
+        Route::get('/{id}/receipt', [RoomBookingController::class, 'receipt']);
+        Route::get('/{id}/qrcode', [RoomBookingController::class, 'qrcode']);
     });
 });
