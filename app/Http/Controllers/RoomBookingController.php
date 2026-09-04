@@ -388,8 +388,9 @@ class RoomBookingController extends Controller
                 'Content-Disposition' => 'inline; filename="booking-' . $booking->id . '-qr.png"',
                 'Cache-Control' => 'public, max-age=86400',
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             // Fallback: return URL as JSON if QR library not available
+            // (\Throwable, not \Exception — a missing class raises \Error, not \Exception)
             \Log::warning('QR code generation failed', ['error' => $e->getMessage()]);
 
             return response()->json([

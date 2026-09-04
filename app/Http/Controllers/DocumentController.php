@@ -401,7 +401,7 @@ class DocumentController extends Controller
             \Log::error('Failed to generate executive summary', ['document_id' => $id, 'error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal generate executive summary. Silakan coba lagi.',
+                'message' => $e->getMessage() ?: 'Gagal generate executive summary. Silakan coba lagi.',
             ], 500);
         }
     }
@@ -436,7 +436,7 @@ class DocumentController extends Controller
             \Log::error('Failed to generate approval sheet', ['document_id' => $id, 'error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal generate lembar pengesahan. Silakan coba lagi.',
+                'message' => $e->getMessage() ?: 'Gagal generate lembar pengesahan. Silakan coba lagi.',
             ], 500);
         }
     }
