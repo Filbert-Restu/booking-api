@@ -62,13 +62,14 @@ class RoomBookingController extends Controller
             ], 201);
 
         } catch (\Throwable $e) {
-            // Rollback dokumen jika ada error
-            if ($document) {
-                $this->bookingService->rollbackDocumentIfOwned($document, $user);
-            } elseif ($request->has('document_id')) {
-                $doc = Document::find($request->document_id);
-                if ($doc) $this->bookingService->rollbackDocumentIfOwned($doc, $user);
-            }
+            // Catatan: dokumen draft yang menyertai booking ini SENGAJA tidak dihapus
+            // saat booking gagal dibuat (mis. tanggal terlalu dekat, ruangan hanya
+            // boleh hari tertentu, dsb). Sebelumnya kegagalan apapun langsung
+            // menghapus permanen dokumen yang baru dibuat, memaksa pengguna mengisi
+            // ulang seluruh form dari awal hanya karena salah pilih tanggal/ruangan.
+            // Dokumen DRAFT tanpa booking tidak berbahaya dibiarkan ada — pengguna
+            // tinggal memperbaiki tanggal/ruangan dan mencoba lagi dengan
+            // document_id yang sama.
 
             if ($e instanceof \Illuminate\Validation\ValidationException) {
                 return response()->json([
