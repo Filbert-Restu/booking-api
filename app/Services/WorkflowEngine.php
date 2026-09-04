@@ -139,6 +139,43 @@ class WorkflowEngine
     }
 
     /**
+     * Logika Reject: Tolak dokumen secara final, hentikan alur.
+     */
+    public function rejectDocument(Document $document, User $actor, string $note)
+    {
+        return DB::transaction(function () use ($document, $actor, $note) {
+            // 1. Catat Log "REJECTED"
+            DocumentLog::create([
+                'document_id' => $document->id,
+                'user_id' => $actor->id,
+                'action' => 'REJECTED',
+                'note' => $note,
+                'step_snapshot' => $document->current_step_order,
+            ]);
+
+            // 2. Set dokumen sebagai final ditolak
+            $document->update([
+                'status' => 'REJECTED',
+                'completed_at' => now(),
+                'current_holder_id' => null,
+            ]);
+
+            // 3. Ikut tolak booking ruangan terkait (jika ada) agar tidak menggantung PENDING
+            $booking = RoomBooking::where('document_id', $document->id)->first();
+            if ($booking && $booking->status === 'PENDING') {
+                $booking->update([
+                    'status' => 'REJECTED',
+                    'approved_by' => $actor->id,
+                    'approved_at' => now(),
+                    'rejection_reason' => $note,
+                ]);
+            }
+
+            return 'Dokumen ditolak.';
+        });
+    }
+
+    /**
      * Logika Revisi: Kembalikan ke masa lalu
      */
     public function reviseDocument(Document $document, User $actor, $targetUserId, $note)

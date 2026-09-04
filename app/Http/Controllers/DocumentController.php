@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\Document\StoreDocumentRequest;
 use App\Http\Requests\Document\ApproveDocumentRequest;
+use App\Http\Requests\Document\RejectDocumentRequest;
 use App\Http\Requests\Document\ReviseDocumentRequest;
 use App\Http\Requests\Document\ApplySignatureRequest;
 
@@ -162,6 +163,49 @@ class DocumentController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => ($code === 400) ? $e->getMessage() : 'Gagal menyetujui dokumen. Silakan coba lagi.',
+            ], $code);
+        }
+    }
+
+    public function reject(RejectDocumentRequest $request, $id)
+    {
+        $validated = $request->validated();
+        $document = Document::findOrFail($id);
+        $user = $request->user();
+
+        // Authorization: Hanya current holder
+        if ($document->current_holder_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak memiliki akses untuk menolak dokumen ini',
+            ], 403);
+        }
+
+        // Status check
+        if (!in_array($document->status, ['IN_PROGRESS', 'REVISION'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Dokumen dalam status ' . $document->status . ' tidak dapat ditolak',
+            ], 400);
+        }
+
+        try {
+            $result = $this->documentService->rejectDocument($document, $user, $validated['note']);
+
+            return response()->json([
+                'success' => true,
+                'message' => $result,
+                'data' => $document->fresh(['currentHolder', 'creator', 'logs']),
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to reject document', ['document_id' => $id, 'error' => $e->getMessage()]);
+
+            $code = $e->getCode() ?: 500;
+            if ($code < 100 || $code > 599) $code = 500;
+
+            return response()->json([
+                'success' => false,
+                'message' => ($code === 400) ? $e->getMessage() : 'Gagal menolak dokumen. Silakan coba lagi.',
             ], $code);
         }
     }

@@ -463,6 +463,11 @@ class DocumentService
         return $this->workflowEngine->reviseDocument($document, $user, $targetUserId, $note);
     }
 
+    public function rejectDocument(Document $document, User $user, string $note): string
+    {
+        return $this->workflowEngine->rejectDocument($document, $user, $note);
+    }
+
     public function applySignatureToDocument(Document $document, User $user, string $type): void
     {
         $columnMap = [
